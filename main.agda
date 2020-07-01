@@ -51,6 +51,49 @@ _[_:=_] : Term → Id → Term → Term
 ... | yes _          =  μ x ⇒ N
 ... | no  _          =  μ x ⇒ N [ y := V ]
 
+infix 4 _—→_
+
+data _—→_ : Term → Term → Set where
+
+ξ-·₁ : ∀ {L L′ M}
+     → L —→ L′
+-----------------
+     → L · M —→ L′ · M
+
+ξ-·₂ : ∀ {V M M′}
+     → Value V
+     → M —→ M′
+-----------------
+     → V · M —→ V · M′
+
+β-ƛ : ∀ {x N V}
+    → Value V
+------------------------------
+    → (ƛ x ⇒ N) · V —→ N [ x := V ]
+
+ξ-suc : ∀ {M M′}
+      → M —→ M′
+------------------
+      → `suc M —→ `suc M′
+
+ξ-case : ∀ {x L L′ M N}
+       → L —→ L′
+-----------------------------------------------------------------
+       → case L [zero⇒ M |suc x ⇒ N ] —→ case L′ [zero⇒ M |suc x ⇒ N ]
+
+β-zero : ∀ {x M N}
+----------------------------------------
+       → case `zero [zero⇒ M |suc x ⇒ N ] —→ M
+
+β-suc : ∀ {x V M N}
+      → Value V
+---------------------------------------------------
+      → case `suc V [zero⇒ M |suc x ⇒ N ] —→ N [ x := V ]
+
+β-μ : ∀ {x M}
+------------------------------
+    → μ x ⇒ M —→ M [ x := μ x ⇒ M ]
+
 --Typing Judgement
 infixr 7 _⇒_
 
@@ -115,3 +158,4 @@ data _⊢_⦂_ : Context → Term → Type → Set where
      → Γ , x ⦂ A ⊢ M ⦂ A
      -----------------
      → Γ ⊢ μ x ⇒ M ⦂ A
+
