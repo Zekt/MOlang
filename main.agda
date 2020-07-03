@@ -20,14 +20,23 @@ infix  9  _[_:=_]
 Id : Set
 Id = String
 
-data Term : Set where
-  `_                   : Id → Term
-  ƛ_⇒_                 : Id → Term → Term
-  _·_                  : Term → Term → Term
-  `zero                : Term
-  `suc_                : Term → Term
-  case_[zero⇒_|suc_⇒_] : Term → Term → Id → Term → Term
-  μ_⇒_                 : Id → Term → Term
+mutual
+  data Term : Set where
+    `_                   : Id → Term
+    ƛ_⇒_                 : Id → Term → Term
+    _·_                  : Term → Term → Term
+    `zero                : Term
+    `suc_                : Term → Term
+    case_[zero⇒_|suc_⇒_] : Term → Term → Id → Term → Term
+    μ_⇒_                 : Id → Term → Term
+    cmd_                 : Cmd → Term
+
+  data Cmd : Set where
+    ret_     : Term → Cmd
+    bnd_←_↴_ : Id → Term → Cmd → Cmd
+    dcl_≔_↴_ : Id → Term → Cmd → Cmd
+    get_     : Id → Cmd
+    _≔_      : Id → Term → Cmd
 
 data Value : Term → Set where
   V-ƛ    : ∀ {x N}         → Value (ƛ x ⇒ N)
