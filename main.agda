@@ -144,6 +144,7 @@ data Value : Term → Set where
   V-ƛ    : ∀ {x N}         → Value (ƛ x ⇒ N)
   V-zero :                   Value `zero
   V-suc  : ∀ {V} → Value V → Value (`suc V)
+  V-cmd  : ∀ {C} → Value (cmd C)
 
 _[_:=_] : Term → Id → Term → Term
 (` x) [ y := V ] with x ≟ y
@@ -164,69 +165,68 @@ _[_:=_] : Term → Id → Term → Term
 ...                | yes _ = μ x ⇒ N
 ...                | no  _ = μ x ⇒ N [ y := V ]
 
-infix 4 _—→_
+infix 4 _—[_]→_
 
-data _—→_ : Term → Term → Set where
-  ξ-·₁ : ∀ {L L′ M}
-       → L —→ L′
-  -----------------
-       → L · M —→ L′ · M
+data _—[_]→_ : Term → Signature → Term → Set where
+  ξ-·₁ : ∀ {L L′ M Σ}
+       → L —[ Σ ]→ L′
+       -----------------
+       → L · M —[ Σ ]→ L′ · M
 
-  ξ-·₂ : ∀ {V M M′}
-       → Value V
-       → M —→ M′
-  -----------------
-       → V · M —→ V · M′
+  ξ-·₂ : ∀ {V M M′ Σ}
+       → Value V → M —[ Σ ]→ M′
+       -----------------
+       → V · M —[ Σ ]→ V · M′
 
-  β-ƛ : ∀ {x N V}
+  β-ƛ : ∀ {x N V Σ}
       → Value V
-  ------------------------------
-      → (ƛ x ⇒ N) · V —→ N [ x := V ]
+      ------------------------------
+      → (ƛ x ⇒ N) · V —[ Σ ]→ N [ x := V ]
 
-  ξ-suc : ∀ {M M′}
-        → M —→ M′
-  ------------------
-        → `suc M —→ `suc M′
+  ξ-suc : ∀ {M M′ Σ}
+        → M —[ Σ ]→ M′
+        ------------------
+        → `suc M —[ Σ ]→ `suc M′
 
-  ξ-case : ∀ {x L L′ M N}
-         → L —→ L′
-  -----------------------------------------------------------------
-         → case L [zero⇒ M |suc x ⇒ N ] —→ case L′ [zero⇒ M |suc x ⇒ N ]
+  ξ-case : ∀ {x L L′ M N Σ}
+         → L —[ Σ ]→ L′
+         -----------------------------------------------------------------
+         → case L [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ case L′ [zero⇒ M |suc x ⇒ N ]
 
-  β-zero : ∀ {x M N}
-  ----------------------------------------
-         → case `zero [zero⇒ M |suc x ⇒ N ] —→ M
+  β-zero : ∀ {x M N Σ}
+         ----------------------------------------
+         → case `zero [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ M
 
-  β-suc : ∀ {x V M N}
+  β-suc : ∀ {x V M N Σ}
         → Value V
-  ---------------------------------------------------
-        → case `suc V [zero⇒ M |suc x ⇒ N ] —→ N [ x := V ]
+        ---------------------------------------------------
+        → case `suc V [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ N [ x := V ]
 
-  β-μ : ∀ {x M}
-  ------------------------------
-      → μ x ⇒ M —→ M [ x := μ x ⇒ M ]
+  β-μ : ∀ {x M Σ}
+      ------------------------------
+      → μ x ⇒ M —[ Σ ]→ M [ x := μ x ⇒ M ]
 
 infix  2 _—↠_
 infix  1 begin_
 infixr 2 _—→⟨_⟩_
 infix  3 _∎
 
-data _—↠_ : Term → Term → Set where
-  _∎ : ∀ M
-     ---------
-     → M —↠ M
-
-  _—→⟨_⟩_ : ∀ L {M N}
-        → L —→ M
-        → M —↠ N
-        ---------
-        → L —↠ N
-
-begin_ : ∀ {M N}
-       → M —↠ N
-       ------
-       → M —↠ N
-begin M—↠N = M—↠N
+--data _—↠_ : Term → Term → Set where
+--  _∎ : ∀ M
+--     ---------
+--     → M —↠ M
+--
+--  _—→⟨_⟩_ : ∀ L {M N}
+--        → L —→ M
+--        → M —↠ N
+--        ---------
+--        → L —↠ N
+--
+--begin_ : ∀ {M N}
+--       → M —↠ N
+--       ------
+--       → M —↠ N
+--begin M—↠N = M—↠N
 
 --infix 4 Canonical_⦂_
 --
