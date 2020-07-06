@@ -9,207 +9,258 @@ open import Data.List using (List; _∷_; [])
 
 module main where
 
+infix  4 _⊢_
+infix  4 _∋_
+infix  5 _,_
+infix  5 ƛ_⇒_
+infix  5 μ_⇒_
+infixr 7 _⇒_
+infixl 7 _·_
+infix  8 `suc_
+infix  9 `_
+infix  9 _[_:=_]
 
-infix  5  ƛ_⇒_
-infix  5  μ_⇒_
-infixl 7  _·_
-infix  8  `suc_
-infix  9  `_
-infix  9  _[_:=_]
+data Type : Set where
+  _⇒_  : Type → Type → Type
+  `ℕ   : Type
+  `Cmd : Type
 
-Id : Set
-Id = String
+data Context : Set where
+  ∅   : Context
+  _,_ : Context → Type → Context
 
-mutual
-  data Term : Set where
-    `_                   : Id → Term
-    ƛ_⇒_                 : Id → Term → Term
-    _·_                  : Term → Term → Term
-    `zero                : Term
-    `suc_                : Term → Term
-    case_[zero⇒_|suc_⇒_] : Term → Term → Id → Term → Term
-    μ_⇒_                 : Id → Term → Term
-    cmd_                 : Cmd → Term
+data _∋_ : Context → Type → Set where
 
-  data Cmd : Set where
-    ret_     : Term → Cmd
-    bnd_←_↷_  : Id → Term → Cmd → Cmd
-    dcl_≔_↷_ : Id → Term → Cmd → Cmd
-    get_     : Id → Cmd
-    set      : Id → Term → Cmd
+  Z : ∀ {Γ A}
+    → Γ , A ∋ A
+
+  S : ∀ {Γ A B}
+    → Γ ∋ A → Γ , B ∋ A
+
+data _⊢_ : Context → Type → Set where
+  ` : ∀ {Γ A}
+     → Γ ∋ A
+     ------------
+     → Γ ⊢ A
+
+  ƛ : ∀ {Γ A B}
+     → Γ , A ⊢ B
+     --------------------
+     → Γ ⊢ A ⇒ B
+  -- ⇒-E
+  _·_ : ∀ {Γ A B}
+      → Γ ⊢ A ⇒ B
+      → Γ ⊢ A
+      -------------
+      → Γ ⊢ B
+  -- ℕ-I₁
+  `zero : ∀ {Γ}
+        --------------
+        → Γ ⊢ `ℕ
+  -- ℕ-I₂
+  `suc : ∀ {Γ}
+       → Γ ⊢ `ℕ
+       ---------------
+       → Γ ⊢ `ℕ
+  -- ℕ-E
+  `case : ∀ {Γ A}
+        → Γ ⊢ `ℕ
+        → Γ ⊢ A
+        → Γ , `ℕ ⊢ A
+        -------------
+        → Γ ⊢ A
+
+  `μ : ∀ {Γ A}
+     → Γ , A ⊢ A
+     -----------------
+     → Γ ⊢ A
+
+lookup : Context → ℕ → Type
+lookup (Γ , A) zero    = A
+lookup (Γ , _) (suc n) = lookup Γ n
+lookup ∅       _       = ⊥-elim impossible
+  where postulate impossible : ⊥
+
+count : ∀ {Γ} → (n : ℕ) → Γ ∋ lookup Γ n
+count {Γ , _} zero    = Z
+count {Γ , _} (suc n) = S (count n)
+count {∅}     _       = ⊥-elim impossible
+  where postulate impossible : ⊥
+
+#_ : ∀ {Γ} → (n : ℕ) → Γ ⊢ lookup Γ n
+# n = ` (count n)
+
+--mutual
+--  data Term : Set where
+--    `_                   : Id → Term
+--    ƛ_⇒_                 : Id → Term → Term
+--    _·_                  : Term → Term → Term
+--    `zero                : Term
+--    `suc_                : Term → Term
+--    case_[zero⇒_|suc_⇒_] : Term → Term → Id → Term → Term
+--    μ_⇒_                 : Id → Term → Term
+--    cmd_                 : Cmd → Term
+--
+--  data Cmd : Set where
+--    ret_     : Term → Cmd
+--    bnd_←_↷_  : Id → Term → Cmd → Cmd
+--    dcl_≔_↷_ : Id → Term → Cmd → Cmd
+--    get_     : Id → Cmd
+--    set      : Id → Term → Cmd
 
 
 --Typing Judgement
-infixr 7 _⇒_
 
-data Type : Set where
-  _⇒_ : Type → Type → Type
-  `ℕ  : Type
-  `Cmd : Type
-
-data Stat : Set where
-  ok : Stat
-
-infixl 5 _,_⦂_
-
-data Context : Set where
-  ∅     : Context
-  _,_⦂_ : Context → Id → Type → Context
-
-data Signature : Set where
-  ∅   : Signature
-  _,_ : Signature → Id → Signature
-
-infix 4 _∋_⦂_
-
-data _∋_⦂_ : Context → Id → Type → Set where
-
-  Z : ∀ {Γ x A}
-  -----------------------
-    → Γ , x ⦂ A ∋ x ⦂ A
-
-  S : ∀ {Γ x y A B}
-    → x ≢ y → Γ ∋ x ⦂ A
-  -----------------------
-    → Γ , y ⦂ B ∋ x ⦂ A
-
-data _∋ₛ_⦂_ : Signature → Id → Type → Set where
-
-infix 4 _⍮_⊢_⦂_
-infix 4 _⍮_⊩_⦂_
-
-mutual
-  data _⍮_⊩_⦂_ : Context → Signature → Cmd → Stat → Set where
-
-    ⊩ℕ : ∀ {Γ Σ N}
-       → Γ ⍮ Σ ⊢ N ⦂ `ℕ
-       -------------
-       → Γ ⍮ Σ ⊩ ret N ⦂ ok
-
-    ⊩bnd : ∀ {Γ Σ E x N}
-         → Γ ⍮ Σ ⊢ E ⦂ `Cmd → Γ , x ⦂ `ℕ ⍮ Σ ⊩ N ⦂ ok
-         ----------------------------
-         → Γ ⍮ Σ ⊩ bnd x ← E ↷ N ⦂ ok
-
-    ⊩dcl : ∀ {Γ Σ E x N}
-         → Γ ⍮ Σ ⊢ E ⦂ `Cmd → Γ , x ⦂ `ℕ ⍮ Σ ⊩ N ⦂ ok
-         ----------------------------
-         → Γ ⍮ Σ ⊩ dcl x ≔ E ↷ N ⦂ ok
-
-    ⊩get : ∀ {Γ Σ a} → Γ ⍮ Σ , a ⊩ get a ⦂ ok
-
-    ⊩set : ∀ {Γ Σ a N}
-         → Γ ⍮ Σ , a ⊢ N ⦂ `ℕ
-         ---------------------
-         → Γ ⍮ Σ , a ⊩ set a N ⦂ ok
-
-  data _⍮_⊢_⦂_ : Context → Signature → Term → Type → Set where
-    ⊢` : ∀ {Γ Σ x A}
-       → Γ ∋ x ⦂ A
-       -------------
-       → Γ ⍮ Σ ⊢ ` x ⦂ A
-
-    ⊢ƛ : ∀ {Γ Σ x N A B}
-       → Γ , x ⦂ A ⍮ Σ ⊢ N ⦂ B
-       --------------------
-       → Γ ⍮ Σ ⊢ ƛ x ⇒ N ⦂ A ⇒ B
-    -- ⇒-E
-    _·_ : ∀ {Γ Σ L M A B}
-        → Γ ⍮ Σ ⊢ L ⦂ A ⇒ B
-        → Γ ⍮ Σ ⊢ M ⦂ A
-        -------------
-        → Γ ⍮ Σ ⊢ L · M ⦂ B
-    -- ℕ-I₁
-    ⊢zero : ∀ {Γ Σ}
-          --------------
-          → Γ ⍮ Σ ⊢ `zero ⦂ `ℕ
-    -- ℕ-I₂
-    ⊢suc : ∀ {Γ Σ M}
-         → Γ ⍮ Σ ⊢ M ⦂ `ℕ
-         ---------------
-         → Γ ⍮ Σ ⊢ `suc M ⦂ `ℕ
-    -- ℕ-E
-    ⊢case : ∀ {Γ Σ L M x N A}
-          → Γ ⍮ Σ ⊢ L ⦂ `ℕ
-          → Γ ⍮ Σ ⊢ M ⦂ A
-          → Γ , x ⦂ `ℕ ⍮ Σ ⊢ N ⦂ A
-          -------------------------------------
-          → Γ ⍮ Σ ⊢ case L [zero⇒ M |suc x ⇒ N ] ⦂ A
-    ⊢μ : ∀ {Γ Σ x M A}
-       → Γ , x ⦂ A ⍮ Σ ⊢ M ⦂ A
-       -----------------
-       → Γ ⍮ Σ ⊢ μ x ⇒ M ⦂ A
-
-data Value : Term → Set where
-  V-ƛ    : ∀ {x N}         → Value (ƛ x ⇒ N)
-  V-zero :                   Value `zero
-  V-suc  : ∀ {V} → Value V → Value (`suc V)
-  V-cmd  : ∀ {C} → Value (cmd C)
-
-_[_:=_] : Term → Id → Term → Term
-(` x) [ y := V ] with x ≟ y
-...            | yes _ = V
-...            | no  _ = ` x
-(ƛ x ⇒ N) [ y := V ] with x ≟ y
-...                  | yes _ = ƛ x ⇒ N
-...                  | no  _ = ƛ x ⇒ N [ y := V ]
-(L · M) [ y := V ] = L [ y := V ] · M [ y := V ]
-(`zero) [ y := V ] = `zero
-(`suc M) [ y := V ] = `suc M [ y := V ]
-(case L [zero⇒ M |suc x ⇒ N ]) [ y := V ] with x ≟ y
-...                                     | yes _ = case L [ y := V ] [zero⇒ M [ y := V ]
-                                                                    |suc x ⇒ N ]
-...                                     | no  _ = case L [ y := V ] [zero⇒ M [ y := V ]
-                                                                    |suc x ⇒ N [ y := V ] ]
-(μ x ⇒ N) [ y := V ] with x ≟ y
-...                | yes _ = μ x ⇒ N
-...                | no  _ = μ x ⇒ N [ y := V ]
-
-infix 4 _—[_]→_
-
-data _—[_]→_ : Term → Signature → Term → Set where
-  ξ-·₁ : ∀ {L L′ M Σ}
-       → L —[ Σ ]→ L′
-       -----------------
-       → L · M —[ Σ ]→ L′ · M
-
-  ξ-·₂ : ∀ {V M M′ Σ}
-       → Value V → M —[ Σ ]→ M′
-       -----------------
-       → V · M —[ Σ ]→ V · M′
-
-  β-ƛ : ∀ {x N V Σ}
-      → Value V
-      ------------------------------
-      → (ƛ x ⇒ N) · V —[ Σ ]→ N [ x := V ]
-
-  ξ-suc : ∀ {M M′ Σ}
-        → M —[ Σ ]→ M′
-        ------------------
-        → `suc M —[ Σ ]→ `suc M′
-
-  ξ-case : ∀ {x L L′ M N Σ}
-         → L —[ Σ ]→ L′
-         -----------------------------------------------------------------
-         → case L [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ case L′ [zero⇒ M |suc x ⇒ N ]
-
-  β-zero : ∀ {x M N Σ}
-         ----------------------------------------
-         → case `zero [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ M
-
-  β-suc : ∀ {x V M N Σ}
-        → Value V
-        ---------------------------------------------------
-        → case `suc V [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ N [ x := V ]
-
-  β-μ : ∀ {x M Σ}
-      ------------------------------
-      → μ x ⇒ M —[ Σ ]→ M [ x := μ x ⇒ M ]
-
-infix  2 _—↠_
-infix  1 begin_
-infixr 2 _—→⟨_⟩_
-infix  3 _∎
+--data Stat : Set where
+--  ok : Stat
+--
+--infixl 5 _,_⦂_
+--
+--data Context : Set where
+--  ∅     : Context
+--  _,_⦂_ : Context → Id → Type → Context
+--
+--data Signature : Set where
+--  ∅   : Signature
+--  _,_ : Signature → Id → Signature
+--
+--data _∋ₛ_⦂_ : Signature → Id → Type → Set where
+--
+--infix 4 _⍮_⊢_⦂_
+--infix 4 _⍮_⊩_⦂_
+--
+--mutual
+--  data _⍮_⊩_⦂_ : Context → Signature → Cmd → Stat → Set where
+--
+--    ⊩ℕ : ∀ {Γ Σ N}
+--       → Γ ⍮ Σ ⊢ N ⦂ `ℕ
+--       -------------
+--       → Γ ⍮ Σ ⊩ ret N ⦂ ok
+--
+--    ⊩bnd : ∀ {Γ Σ E x N}
+--         → Γ ⍮ Σ ⊢ E ⦂ `Cmd → Γ , x ⦂ `ℕ ⍮ Σ ⊩ N ⦂ ok
+--         ----------------------------
+--         → Γ ⍮ Σ ⊩ bnd x ← E ↷ N ⦂ ok
+--
+--    ⊩dcl : ∀ {Γ Σ E x N}
+--         → Γ ⍮ Σ ⊢ E ⦂ `Cmd → Γ , x ⦂ `ℕ ⍮ Σ ⊩ N ⦂ ok
+--         ----------------------------
+--         → Γ ⍮ Σ ⊩ dcl x ≔ E ↷ N ⦂ ok
+--
+--    ⊩get : ∀ {Γ Σ a} → Γ ⍮ Σ , a ⊩ get a ⦂ ok
+--
+--    ⊩set : ∀ {Γ Σ a N}
+--         → Γ ⍮ Σ , a ⊢ N ⦂ `ℕ
+--         ---------------------
+--         → Γ ⍮ Σ , a ⊩ set a N ⦂ ok
+--
+--  data _⍮_⊢_⦂_ : Context → Signature → Term → Type → Set where
+--    ⊢` : ∀ {Γ Σ x A}
+--       → Γ ∋ x ⦂ A
+--       -------------
+--       → Γ ⍮ Σ ⊢ ` x ⦂ A
+--
+--    ⊢ƛ : ∀ {Γ Σ x N A B}
+--       → Γ , x ⦂ A ⍮ Σ ⊢ N ⦂ B
+--       --------------------
+--       → Γ ⍮ Σ ⊢ ƛ x ⇒ N ⦂ A ⇒ B
+--    -- ⇒-E
+--    _·_ : ∀ {Γ Σ L M A B}
+--        → Γ ⍮ Σ ⊢ L ⦂ A ⇒ B
+--        → Γ ⍮ Σ ⊢ M ⦂ A
+--        -------------
+--        → Γ ⍮ Σ ⊢ L · M ⦂ B
+--    -- ℕ-I₁
+--    ⊢zero : ∀ {Γ Σ}
+--          --------------
+--          → Γ ⍮ Σ ⊢ `zero ⦂ `ℕ
+--    -- ℕ-I₂
+--    ⊢suc : ∀ {Γ Σ M}
+--         → Γ ⍮ Σ ⊢ M ⦂ `ℕ
+--         ---------------
+--         → Γ ⍮ Σ ⊢ `suc M ⦂ `ℕ
+--    -- ℕ-E
+--    ⊢case : ∀ {Γ Σ L M x N A}
+--          → Γ ⍮ Σ ⊢ L ⦂ `ℕ
+--          → Γ ⍮ Σ ⊢ M ⦂ A
+--          → Γ , x ⦂ `ℕ ⍮ Σ ⊢ N ⦂ A
+--          -------------------------------------
+--          → Γ ⍮ Σ ⊢ case L [zero⇒ M |suc x ⇒ N ] ⦂ A
+--    ⊢μ : ∀ {Γ Σ x M A}
+--       → Γ , x ⦂ A ⍮ Σ ⊢ M ⦂ A
+--       -----------------
+--       → Γ ⍮ Σ ⊢ μ x ⇒ M ⦂ A
+--
+--data Value : Term → Set where
+--  V-ƛ    : ∀ {x N}         → Value (ƛ x ⇒ N)
+--  V-zero :                   Value `zero
+--  V-suc  : ∀ {V} → Value V → Value (`suc V)
+--  V-cmd  : ∀ {C} → Value (cmd C)
+--
+--_[_:=_] : Term → Id → Term → Term
+--(` x) [ y := V ] with x ≟ y
+--...            | yes _ = V
+--...            | no  _ = ` x
+--(ƛ x ⇒ N) [ y := V ] with x ≟ y
+--...                  | yes _ = ƛ x ⇒ N
+--...                  | no  _ = ƛ x ⇒ N [ y := V ]
+--(L · M) [ y := V ] = L [ y := V ] · M [ y := V ]
+--(`zero) [ y := V ] = `zero
+--(`suc M) [ y := V ] = `suc M [ y := V ]
+--(case L [zero⇒ M |suc x ⇒ N ]) [ y := V ] with x ≟ y
+--...                                     | yes _ = case L [ y := V ] [zero⇒ M [ y := V ]
+--                                                                    |suc x ⇒ N ]
+--...                                     | no  _ = case L [ y := V ] [zero⇒ M [ y := V ]
+--                                                                    |suc x ⇒ N [ y := V ] ]
+--(μ x ⇒ N) [ y := V ] with x ≟ y
+--...                | yes _ = μ x ⇒ N
+--...                | no  _ = μ x ⇒ N [ y := V ]
+--
+--infix 4 _—[_]→_
+--
+--data _—[_]→_ : Term → Signature → Term → Set where
+--  ξ-·₁ : ∀ {L L′ M Σ}
+--       → L —[ Σ ]→ L′
+--       -----------------
+--       → L · M —[ Σ ]→ L′ · M
+--
+--  ξ-·₂ : ∀ {V M M′ Σ}
+--       → Value V → M —[ Σ ]→ M′
+--       -----------------
+--       → V · M —[ Σ ]→ V · M′
+--
+--  β-ƛ : ∀ {x N V Σ}
+--      → Value V
+--      ------------------------------
+--      → (ƛ x ⇒ N) · V —[ Σ ]→ N [ x := V ]
+--
+--  ξ-suc : ∀ {M M′ Σ}
+--        → M —[ Σ ]→ M′
+--        ------------------
+--        → `suc M —[ Σ ]→ `suc M′
+--
+--  ξ-case : ∀ {x L L′ M N Σ}
+--         → L —[ Σ ]→ L′
+--         -----------------------------------------------------------------
+--         → case L [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ case L′ [zero⇒ M |suc x ⇒ N ]
+--
+--  β-zero : ∀ {x M N Σ}
+--         ----------------------------------------
+--         → case `zero [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ M
+--
+--  β-suc : ∀ {x V M N Σ}
+--        → Value V
+--        ---------------------------------------------------
+--        → case `suc V [zero⇒ M |suc x ⇒ N ] —[ Σ ]→ N [ x := V ]
+--
+--  β-μ : ∀ {x M Σ}
+--      ------------------------------
+--      → μ x ⇒ M —[ Σ ]→ M [ x := μ x ⇒ M ]
+--
+--infix  2 _—↠_
+--infix  1 begin_
+--infixr 2 _—→⟨_⟩_
+--infix  3 _∎
 
 --data _—↠_ : Term → Term → Set where
 --  _∎ : ∀ M
