@@ -18,6 +18,7 @@ infixr 7 _⇒_
 infixl 7 _·_
 infix  8 `suc_
 infix  9 `_
+infix  9 #_
 infix  9 _[_:=_]
 
 data Type : Set where
@@ -63,17 +64,17 @@ data _⊢_ : Context → Type → Set where
        ---------------
        → Γ ⊢ `ℕ
   -- ℕ-E
-  `case : ∀ {Γ A}
-        → Γ ⊢ `ℕ
-        → Γ ⊢ A
-        → Γ , `ℕ ⊢ A
-        -------------
-        → Γ ⊢ A
+  case : ∀ {Γ A}
+       → Γ ⊢ `ℕ
+       → Γ ⊢ A
+       → Γ , `ℕ ⊢ A
+       -------------
+       → Γ ⊢ A
 
-  `μ : ∀ {Γ A}
-     → Γ , A ⊢ A
-     -----------------
-     → Γ ⊢ A
+  μ : ∀ {Γ A}
+    → Γ , A ⊢ A
+    -----------------
+    → Γ ⊢ A
 
 lookup : Context → ℕ → Type
 lookup (Γ , A) zero    = A
@@ -89,6 +90,165 @@ count {∅}     _       = ⊥-elim impossible
 
 #_ : ∀ {Γ} → (n : ℕ) → Γ ⊢ lookup Γ n
 # n = ` (count n)
+
+M₂ : ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
+M₂ = ƛ (# 1 · (# 1 · # 0))
+
+
+ext : ∀ {Γ Δ}
+    → (∀ {A}   → Γ ∋ A     → Δ ∋ A)
+    -----------------------------------
+    → (∀ {A B} → Γ , B ∋ A → Δ , B ∋ A)
+ext ρ Z     = Z
+ext ρ (S x) = S (ρ x)
+
+rename : ∀ {Γ Δ}
+       → (∀ {A} → Γ ∋ A → Δ ∋ A)
+       ----------------------------------
+       → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
+rename ρ (` w)        = ` (ρ w)
+rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
+rename ρ (L · M)      = (rename ρ L) · (rename ρ M)
+rename ρ `zero        = `zero
+rename ρ (`suc M)     = `suc (rename ρ M)
+rename ρ (case L M N) = case (rename ρ L) (rename ρ M) (rename (ext ρ) N)
+rename ρ (μ M)        = μ (rename (ext ρ) M)
+
+exts : ∀ {Γ Δ}
+     → (∀ {A}   →     Γ ∋ A →     Δ ⊢ A)
+     → (∀ {A B} → Γ , B ∋ A → Δ , B ⊢ A)
+exts ρ Z     = ` Z
+exts ρ (S x) = rename S (ρ x)
+
+subst : ∀ {Γ Δ}
+      → (∀ {A} → Γ ∋ A → Δ ⊢ A)
+      -------------------------
+      → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
+subst σ (` x) = σ x
+subst σ (ƛ N) = ƛ (subst (exts σ) N)
+subst σ (L · M) = (subst σ L) · (subst σ M)
+subst σ `zero = `zero
+subst σ (`suc N) = `suc (subst σ N)
+subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
+subst σ (μ N) = μ (subst (exts σ) N)
+
+_[_] : ∀ {Γ A B}
+     → Γ , B ⊢ A → Γ ⊢ B
+     -------------------
+     → Γ ⊢ A
+_[_] {Γ} {A} {B} N M = subst {Γ , B} {Γ} σ N
+  where
+    σ : ∀ {A} → Γ , B ∋ A → Γ ⊢ A
+    σ Z      = M
+    σ (S x) = ` x
+
+data Value : ∀ {Γ A} → Γ ⊢ A → Set where
+  V-ƛ    : ∀ {Γ A B} {N : Γ , A ⊢ B} → Value (ƛ N)
+  V-zero : ∀ {Γ} → Value (`zero {Γ})
+  V-suc  : ∀ {Γ} {V : Γ ⊢ `ℕ} → Value V → Value (`suc V)
+
+infix 2 _—→_
+
+data _—→_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
+  ξ-·₁ : ∀ {Γ A B} {L L' : Γ ⊢ A ⇒ B} {M : Γ ⊢ A}
+       → L —→ L'
+       → L · M —→ L' · M
+
+  ξ-·₂ : ∀ {Γ A B} {V : Γ ⊢ A ⇒ B} {M M' : Γ ⊢ A}
+       → Value V
+       → M —→ M'
+       → V · M —→ V · M'
+
+  β-ƛ : ∀ {Γ A B} {N : Γ , A ⊢ B} {W : Γ ⊢ A}
+       → Value W
+       --------------------
+       → (ƛ N) · W —→ N [ W ]
+
+  ξ-suc : ∀ {Γ} {M M′ : Γ ⊢ `ℕ}
+        → M —→ M′
+        -----------------
+        → `suc M —→ `suc M′
+
+  ξ-case : ∀ {Γ A} {L L′ : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+         → L —→ L′
+           -------------------------
+           → case L M N —→ case L′ M N
+
+  β-zero :  ∀ {Γ A} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+         -------------------
+         → case `zero M N —→ M
+
+  β-suc : ∀ {Γ A} {V : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+        → Value V
+        ----------------------------
+        → case (`suc V) M N —→ N [ V ]
+
+  β-μ : ∀ {Γ A} {N : Γ , A ⊢ A}
+      ----------------
+      → μ N —→ N [ μ N ]
+
+infix  2 _—↠_
+infix  1 begin_
+infixr 2 _—→⟨_⟩_
+infix  3 _∎
+
+data _—↠_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
+
+  _∎ : ∀ {Γ A} (M : Γ ⊢ A)
+     ------
+     → M —↠ M
+
+  _—→⟨_⟩_ : ∀ {Γ A} (L : Γ ⊢ A) {M N : Γ ⊢ A}
+          → L —→ M
+          → M —↠ N
+          ------
+          → L —↠ N
+
+begin_ : ∀ {Γ A} {M N : Γ ⊢ A}
+  → M —↠ N
+  ------
+  → M —↠ N
+begin M—↠N = M—↠N
+
+data Progress {A} (M : ∅ ⊢ A) : Set where
+  done : Value M → Progress M
+  step : ∀ {N : ∅ ⊢ A} → M —→ N → Progress M
+
+progress : ∀ {A} → (M : ∅ ⊢ A) → Progress M
+progress (ƛ N) = done V-ƛ
+progress (L · M) with progress L
+...    | step L—→L′                     =  step (ξ-·₁ L—→L′)
+...    | done V-ƛ with progress M
+...        | step M—→M′                 =  step (ξ-·₂ V-ƛ M—→M′)
+...        | done VM                    =  step (β-ƛ VM)
+progress (`zero)                        =  done V-zero
+progress (`suc M) with progress M
+...    | step M—→M′                     =  step (ξ-suc M—→M′)
+...    | done VM                        =  done (V-suc VM)
+progress (case L M N) with progress L
+...    | step L—→L′                     =  step (ξ-case L—→L′)
+...    | done V-zero                    =  step (β-zero)
+...    | done (V-suc VL)                =  step (β-suc VL)
+progress (μ N)                          =  step (β-μ)
+
+data Gas : Set where
+  gas : ℕ → Gas
+
+
+data Finished {Γ A} (N : Γ ⊢ A) : Set where
+  done       : Value N → Finished N
+  out-of-gas : Finished N
+
+data Steps : ∀ {A} → ∅ ⊢ A → Set where
+  steps : ∀ {A} {L N : ∅ ⊢ A}
+        → L —↠ N → Finished N → Steps L
+
+eval : ∀ {A} → Gas → (L : ∅ ⊢ A) → Steps L
+eval (gas zero) L = steps (L ∎) out-of-gas
+eval (gas (suc x)) L with progress L
+... | done VL   = steps (L ∎) (done VL)
+... | step {M} L—→M with eval (gas x) M
+...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
 
 --mutual
 --  data Term : Set where
@@ -190,12 +350,6 @@ count {∅}     _       = ⊥-elim impossible
 --       → Γ , x ⦂ A ⍮ Σ ⊢ M ⦂ A
 --       -----------------
 --       → Γ ⍮ Σ ⊢ μ x ⇒ M ⦂ A
---
---data Value : Term → Set where
---  V-ƛ    : ∀ {x N}         → Value (ƛ x ⇒ N)
---  V-zero :                   Value `zero
---  V-suc  : ∀ {V} → Value V → Value (`suc V)
---  V-cmd  : ∀ {C} → Value (cmd C)
 --
 --_[_:=_] : Term → Id → Term → Term
 --(` x) [ y := V ] with x ≟ y
@@ -344,90 +498,6 @@ count {∅}     _       = ⊥-elim impossible
 --...   | C-zero                              =  step β-zero
 --...   | C-suc CL                            =  step (β-suc (value CL))
 --progress (⊢μ ⊢M)                            =  step β-μ
---
---ext : ∀ {Γ Δ}
---    → (∀ {x A}     →         Γ ∋ x ⦂ A →         Δ ∋ x ⦂ A)
---    -----------------------------------------------------
---    → (∀ {x y A B} → Γ , y ⦂ B ∋ x ⦂ A → Δ , y ⦂ B ∋ x ⦂ A)
---ext ρ Z           =  Z
---ext ρ (S x≢y ∋x)  =  S x≢y (ρ ∋x)
---
---rename : ∀ {Γ Δ}
---       → (∀ {x A} → Γ ∋ x ⦂ A → Δ ∋ x ⦂ A)
---       ----------------------------------
---       → (∀ {M A} → Γ ⊢ M ⦂ A → Δ ⊢ M ⦂ A)
---rename ρ (⊢` ∋w)           =  ⊢` (ρ ∋w)
---rename ρ (⊢ƛ ⊢N)           =  ⊢ƛ (rename (ext ρ) ⊢N)
---rename ρ (⊢L · ⊢M)         =  (rename ρ ⊢L) · (rename ρ ⊢M)
---rename ρ ⊢zero             =  ⊢zero
---rename ρ (⊢suc ⊢M)         =  ⊢suc (rename ρ ⊢M)
---rename ρ (⊢case ⊢L ⊢M ⊢N)  =  ⊢case (rename ρ ⊢L) (rename ρ ⊢M) (rename (ext ρ) ⊢N)
---rename ρ (⊢μ ⊢M)           =  ⊢μ (rename (ext ρ) ⊢M)
---
---weaken : ∀ {Γ M A}
---  → ∅ ⊢ M ⦂ A
---  ----------
---  → Γ ⊢ M ⦂ A
---weaken {Γ} ⊢M = rename ρ ⊢M
---                where
---                  ρ : ∀ {z C}
---                    → ∅ ∋ z ⦂ C
---                    ---------
---                    → Γ ∋ z ⦂ C
---                  ρ ()
---
---drop : ∀ {Γ x M A B C}
---     → Γ , x ⦂ A , x ⦂ B ⊢ M ⦂ C
---     --------------------------
---     → Γ , x ⦂ B ⊢ M ⦂ C
---drop {Γ} {x} {M} {A} {B} {C} ⊢M = rename ρ ⊢M
---                                  where
---                                    ρ : ∀ {z C}
---                                      → Γ , x ⦂ A , x ⦂ B ∋ z ⦂ C
---                                      -------------------------
---                                      → Γ , x ⦂ B ∋ z ⦂ C
---                                    ρ Z                 =  Z
---                                    ρ (S x≢x Z)         =  ⊥-elim (x≢x refl)
---                                    ρ (S z≢x (S _ ∋z))  =  S z≢x ∋z
---
---swap : ∀ {Γ x y M A B C}
---     → x ≢ y
---     → Γ , y ⦂ B , x ⦂ A ⊢ M ⦂ C
---     --------------------------
---     → Γ , x ⦂ A , y ⦂ B ⊢ M ⦂ C
---swap {Γ} {x} {y} {M} {A} {B} {C} x≢y ⊢M = rename ρ ⊢M
---                                          where
---                                            ρ : ∀ {z C}
---                                              → Γ , y ⦂ B , x ⦂ A ∋ z ⦂ C
---                                              --------------------------
---                                              → Γ , x ⦂ A , y ⦂ B ∋ z ⦂ C
---                                            ρ Z                   =  S x≢y Z
---                                            ρ (S z≢x Z)           =  Z
---                                            ρ (S z≢x (S z≢y ∋z))  =  S z≢y (S z≢x ∋z)
---
---subst : ∀ {Γ x N V A B}
---      → ∅ ⊢ V ⦂ A
---      → Γ , x ⦂ A ⊢ N ⦂ B
---      --------------------
---      → Γ ⊢ N [ x := V ] ⦂ B
---subst {x = y} ⊢V (⊢` {x = x} Z) with x ≟ y
---... | yes _           =  weaken ⊢V
---... | no  x≢y         =  ⊥-elim (x≢y refl)
---subst {x = y} ⊢V (⊢` {x = x} (S x≢y ∋x)) with x ≟ y
---... | yes refl        =  ⊥-elim (x≢y refl)
---... | no  _           =  ⊢` ∋x
---subst {x = y} ⊢V (⊢ƛ {x = x} ⊢N) with x ≟ y
---... | yes refl        =  ⊢ƛ (drop ⊢N)
---... | no  x≢y         =  ⊢ƛ (subst ⊢V (swap x≢y ⊢N))
---subst ⊢V (⊢L · ⊢M)    =  (subst ⊢V ⊢L) · (subst ⊢V ⊢M)
---subst ⊢V ⊢zero        =  ⊢zero
---subst ⊢V (⊢suc ⊢M)    =  ⊢suc (subst ⊢V ⊢M)
---subst {x = y} ⊢V (⊢case {x = x} ⊢L ⊢M ⊢N) with x ≟ y
---... | yes refl        =  ⊢case (subst ⊢V ⊢L) (subst ⊢V ⊢M) (drop ⊢N)
---... | no  x≢y         =  ⊢case (subst ⊢V ⊢L) (subst ⊢V ⊢M) (subst ⊢V (swap x≢y ⊢N))
---subst {x = y} ⊢V (⊢μ {x = x} ⊢M) with x ≟ y
---... | yes refl        =  ⊢μ (drop ⊢M)
---... | no  x≢y         =  ⊢μ (subst ⊢V (swap x≢y ⊢M))
 --
 --preserve : ∀ {M N A}
 --         → ∅ ⊢ M ⦂ A
