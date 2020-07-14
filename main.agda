@@ -178,6 +178,7 @@ data Value : ∀ {Σ Γ A} → Σ ؛ Γ ⊢ A → Set where
   V-suc  : ∀ {Σ Γ} {V : Σ ؛ Γ ⊢ `ℕ} → Value V → Value (`suc V)
 
 infix 2 _—→_
+infix 2 _—̀→_
 
 data _—→_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
   ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ؛ Γ ⊢ A ⇒ B} {M : Σ ؛ Γ ⊢ A}
