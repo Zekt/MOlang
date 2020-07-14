@@ -11,6 +11,7 @@ module main where
 
 infix  4 _؛_⊢_
 infix  4 _∋_
+infix  4 _∋ₛ_
 infix  5 _,_
 infix  5 ƛ_⇒_
 infix  5 μ_⇒_
@@ -19,7 +20,7 @@ infixl 7 _·_
 infix  8 `suc_
 infix  9 `_
 infix  9 #_
-infix  9 _[_:=_]
+--infix  9 _[_:=_]
 
 Id : Set
 Id = String
@@ -28,6 +29,9 @@ data Type : Set where
   _⇒_  : Type → Type → Type
   `ℕ   : Type
   `Cmd : Type
+
+data CType : Set where
+  ok : CType
 
 data Context : Set where
   ∅   : Context
@@ -45,42 +49,66 @@ data Store : Set where
   ∅   : Store
   _,_ : Store → Id → Store
 
-data _؛_⊢_ : Store → Context → Type → Set where
-  ` : ∀ {Σ Γ A}
-     → Γ ∋ A
-     ------------
-     → Σ ؛ Γ ⊢ A
+data _∋ₛ_ : Store → Id → Set where
+  Z : ∀ {Σ a}            → Σ , a ∋ₛ a
+  S : ∀ {Σ a b} → Σ ∋ₛ a → Σ , b ∋ₛ a
 
-  ƛ : ∀ {Σ Γ A B}
-     → Σ ؛ Γ , A ⊢ B
-     --------------------
-     → Σ ؛ Γ ⊢ A ⇒ B
-  -- ⇒-E
-  _·_ : ∀ {Σ Γ A B}
-      → Σ ؛ Γ ⊢ A ⇒ B   → Σ ؛ Γ ⊢ A
-      ------------------------------
-      → Σ ؛ Γ ⊢ B
-  -- ℕ-I₁
-  `zero : ∀ {Σ Γ}
-        --------------
-        → Σ ؛ Γ ⊢ `ℕ
-  -- ℕ-I₂
-  `suc : ∀ {Σ Γ}
-       → Σ ؛ Γ ⊢ `ℕ
-       ---------------
-       → Σ ؛ Γ ⊢ `ℕ
-  -- ℕ-E
-  case : ∀ {Σ Γ A}
-       → Σ ؛ Γ ⊢ `ℕ   → Σ ؛ Γ ⊢ A   → Σ ؛ Γ , `ℕ ⊢ A
-       ----------------------------------------------
+mutual
+  data _؛_⊢_ : Store → Context → Type → Set where
+    ` : ∀ {Σ Γ A}
+       → Γ ∋ A
+       ------------
        → Σ ؛ Γ ⊢ A
 
-  μ : ∀ {Σ Γ A}
-    → Σ ؛ Γ , A ⊢ A
-    -----------------
-    → Σ ؛ Γ ⊢ A
+    ƛ : ∀ {Σ Γ A B}
+       → Σ ؛ Γ , A ⊢ B
+       --------------------
+       → Σ ؛ Γ ⊢ A ⇒ B
+    -- ⇒-E
+    _·_ : ∀ {Σ Γ A B}
+        → Σ ؛ Γ ⊢ A ⇒ B   → Σ ؛ Γ ⊢ A
+        ------------------------------
+        → Σ ؛ Γ ⊢ B
+    -- ℕ-I₁
+    `zero : ∀ {Σ Γ}
+          --------------
+          → Σ ؛ Γ ⊢ `ℕ
+    -- ℕ-I₂
+    `suc : ∀ {Σ Γ}
+         → Σ ؛ Γ ⊢ `ℕ
+         ---------------
+         → Σ ؛ Γ ⊢ `ℕ
+    -- ℕ-E
+    case : ∀ {Σ Γ A}
+         → Σ ؛ Γ ⊢ `ℕ   → Σ ؛ Γ ⊢ A   → Σ ؛ Γ , `ℕ ⊢ A
+         ----------------------------------------------
+         → Σ ؛ Γ ⊢ A
 
+    μ : ∀ {Σ Γ A}
+      → Σ ؛ Γ , A ⊢ A
+      -----------------
+      → Σ ؛ Γ ⊢ A
 
+    cmd : ∀ {Σ Γ}
+        → Σ ؛ Γ ⊩ ok
+        → Σ ؛ Γ ⊢ `Cmd
+
+  data _؛_⊩_ : Store → Context → CType → Set where
+    ret : ∀ {Σ Γ}
+        → Σ ؛ Γ ⊢ `ℕ
+        → Σ ؛ Γ ⊩ ok
+    bnd : ∀ {Σ Γ}
+        → Σ ؛ Γ ⊢ `Cmd → Σ ؛ Γ , `ℕ ⊩ ok
+        → Σ ؛ Γ ⊩ ok
+    dcl : ∀ {Σ Γ a}
+        → Σ ؛ Γ ⊢ `ℕ → (Σ , a) ؛ Γ ⊩ ok
+        → Σ ؛ Γ ⊩ ok
+    get : ∀ {Σ Γ}
+        → (a : Id)
+        → (Σ , a) ؛ Γ ⊩ ok
+    set : ∀ {Σ Γ}
+        → (a : Id) → (Σ , a) ؛ Γ ⊢ `ℕ
+        → (Σ , a) ؛ Γ ⊩ ok
 
 lookup : Context → ℕ → Type
 lookup (Γ , A) zero    = A
