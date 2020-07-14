@@ -9,7 +9,7 @@ open import Data.List using (List; _∷_; [])
 
 module main where
 
-infix  4 _⊢_
+infix  4 _؛_⊢_
 infix  4 _∋_
 infix  5 _,_
 infix  5 ƛ_⇒_
@@ -20,6 +20,9 @@ infix  8 `suc_
 infix  9 `_
 infix  9 #_
 infix  9 _[_:=_]
+
+Id : Set
+Id = String
 
 data Type : Set where
   _⇒_  : Type → Type → Type
@@ -38,43 +41,46 @@ data _∋_ : Context → Type → Set where
   S : ∀ {Γ A B}
     → Γ ∋ A → Γ , B ∋ A
 
-data _⊢_ : Context → Type → Set where
-  ` : ∀ {Γ A}
+data Store : Set where
+  ∅   : Store
+  _,_ : Store → Id → Store
+
+data _؛_⊢_ : Store → Context → Type → Set where
+  ` : ∀ {Σ Γ A}
      → Γ ∋ A
      ------------
-     → Γ ⊢ A
+     → Σ ؛ Γ ⊢ A
 
-  ƛ : ∀ {Γ A B}
-     → Γ , A ⊢ B
+  ƛ : ∀ {Σ Γ A B}
+     → Σ ؛ Γ , A ⊢ B
      --------------------
-     → Γ ⊢ A ⇒ B
+     → Σ ؛ Γ ⊢ A ⇒ B
   -- ⇒-E
-  _·_ : ∀ {Γ A B}
-      → Γ ⊢ A ⇒ B
-      → Γ ⊢ A
-      -------------
-      → Γ ⊢ B
+  _·_ : ∀ {Σ Γ A B}
+      → Σ ؛ Γ ⊢ A ⇒ B   → Σ ؛ Γ ⊢ A
+      ------------------------------
+      → Σ ؛ Γ ⊢ B
   -- ℕ-I₁
-  `zero : ∀ {Γ}
+  `zero : ∀ {Σ Γ}
         --------------
-        → Γ ⊢ `ℕ
+        → Σ ؛ Γ ⊢ `ℕ
   -- ℕ-I₂
-  `suc : ∀ {Γ}
-       → Γ ⊢ `ℕ
+  `suc : ∀ {Σ Γ}
+       → Σ ؛ Γ ⊢ `ℕ
        ---------------
-       → Γ ⊢ `ℕ
+       → Σ ؛ Γ ⊢ `ℕ
   -- ℕ-E
-  case : ∀ {Γ A}
-       → Γ ⊢ `ℕ
-       → Γ ⊢ A
-       → Γ , `ℕ ⊢ A
-       -------------
-       → Γ ⊢ A
+  case : ∀ {Σ Γ A}
+       → Σ ؛ Γ ⊢ `ℕ   → Σ ؛ Γ ⊢ A   → Σ ؛ Γ , `ℕ ⊢ A
+       ----------------------------------------------
+       → Σ ؛ Γ ⊢ A
 
-  μ : ∀ {Γ A}
-    → Γ , A ⊢ A
+  μ : ∀ {Σ Γ A}
+    → Σ ؛ Γ , A ⊢ A
     -----------------
-    → Γ ⊢ A
+    → Σ ؛ Γ ⊢ A
+
+
 
 lookup : Context → ℕ → Type
 lookup (Γ , A) zero    = A
@@ -88,12 +94,8 @@ count {Γ , _} (suc n) = S (count n)
 count {∅}     _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
-#_ : ∀ {Γ} → (n : ℕ) → Γ ⊢ lookup Γ n
+#_ : ∀ {Σ Γ} → (n : ℕ) → Σ ؛ Γ ⊢ lookup Γ n
 # n = ` (count n)
-
-M₂ : ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
-M₂ = ƛ (# 1 · (# 1 · # 0))
-
 
 ext : ∀ {Γ Δ}
     → (∀ {A}   → Γ ∋ A     → Δ ∋ A)
@@ -102,10 +104,10 @@ ext : ∀ {Γ Δ}
 ext ρ Z     = Z
 ext ρ (S x) = S (ρ x)
 
-rename : ∀ {Γ Δ}
+rename : ∀ {Σ Γ Δ}
        → (∀ {A} → Γ ∋ A → Δ ∋ A)
        ----------------------------------
-       → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
+       → (∀ {A} → Σ ؛ Γ ⊢ A → Σ ؛ Δ ⊢ A)
 rename ρ (` w)        = ` (ρ w)
 rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
 rename ρ (L · M)      = (rename ρ L) · (rename ρ M)
@@ -114,16 +116,16 @@ rename ρ (`suc M)     = `suc (rename ρ M)
 rename ρ (case L M N) = case (rename ρ L) (rename ρ M) (rename (ext ρ) N)
 rename ρ (μ M)        = μ (rename (ext ρ) M)
 
-exts : ∀ {Γ Δ}
-     → (∀ {A}   →     Γ ∋ A →     Δ ⊢ A)
-     → (∀ {A B} → Γ , B ∋ A → Δ , B ⊢ A)
+exts : ∀ {Σ Γ Δ}
+     → (∀ {A}   →     Γ ∋ A → Σ ؛ Δ ⊢ A)
+     → (∀ {A B} → Γ , B ∋ A → Σ ؛ Δ , B ⊢ A)
 exts ρ Z     = ` Z
 exts ρ (S x) = rename S (ρ x)
 
-subst : ∀ {Γ Δ}
-      → (∀ {A} → Γ ∋ A → Δ ⊢ A)
+subst : ∀ {Σ Γ Δ}
+      → (∀ {A} → Γ ∋ A → Σ ؛ Δ ⊢ A)
       -------------------------
-      → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
+      → (∀ {A} → Σ ؛ Γ ⊢ A → Σ ؛ Δ ⊢ A)
 subst σ (` x) = σ x
 subst σ (ƛ N) = ƛ (subst (exts σ) N)
 subst σ (L · M) = (subst σ L) · (subst σ M)
@@ -132,58 +134,58 @@ subst σ (`suc N) = `suc (subst σ N)
 subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
 subst σ (μ N) = μ (subst (exts σ) N)
 
-_[_] : ∀ {Γ A B}
-     → Γ , B ⊢ A → Γ ⊢ B
+_[_] : ∀ {Σ Γ A B}
+     → Σ ؛ Γ , B ⊢ A → Σ ؛ Γ ⊢ B
      -------------------
-     → Γ ⊢ A
-_[_] {Γ} {A} {B} N M = subst {Γ , B} {Γ} σ N
+     → Σ ؛ Γ ⊢ A
+_[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Γ , B} {Γ} σ N
   where
-    σ : ∀ {A} → Γ , B ∋ A → Γ ⊢ A
+    σ : ∀ {A} → Γ , B ∋ A → Σ ؛ Γ ⊢ A
     σ Z      = M
     σ (S x) = ` x
 
-data Value : ∀ {Γ A} → Γ ⊢ A → Set where
-  V-ƛ    : ∀ {Γ A B} {N : Γ , A ⊢ B} → Value (ƛ N)
-  V-zero : ∀ {Γ} → Value (`zero {Γ})
-  V-suc  : ∀ {Γ} {V : Γ ⊢ `ℕ} → Value V → Value (`suc V)
+data Value : ∀ {Σ Γ A} → Σ ؛ Γ ⊢ A → Set where
+  V-ƛ    : ∀ {Σ Γ A B} {N : Σ ؛ Γ , A ⊢ B} → Value (ƛ N)
+  V-zero : ∀ {Σ Γ} → Value (`zero {Σ} {Γ})
+  V-suc  : ∀ {Σ Γ} {V : Σ ؛ Γ ⊢ `ℕ} → Value V → Value (`suc V)
 
 infix 2 _—→_
 
-data _—→_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
-  ξ-·₁ : ∀ {Γ A B} {L L' : Γ ⊢ A ⇒ B} {M : Γ ⊢ A}
+data _—→_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
+  ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ؛ Γ ⊢ A ⇒ B} {M : Σ ؛ Γ ⊢ A}
        → L —→ L'
        → L · M —→ L' · M
 
-  ξ-·₂ : ∀ {Γ A B} {V : Γ ⊢ A ⇒ B} {M M' : Γ ⊢ A}
+  ξ-·₂ : ∀ {Σ Γ A B} {V : Σ ؛ Γ ⊢ A ⇒ B} {M M' : Σ ؛ Γ ⊢ A}
        → Value V
        → M —→ M'
        → V · M —→ V · M'
 
-  β-ƛ : ∀ {Γ A B} {N : Γ , A ⊢ B} {W : Γ ⊢ A}
+  β-ƛ : ∀ {Σ Γ A B} {N : Σ ؛ Γ , A ⊢ B} {W : Σ ؛ Γ ⊢ A}
        → Value W
        --------------------
        → (ƛ N) · W —→ N [ W ]
 
-  ξ-suc : ∀ {Γ} {M M′ : Γ ⊢ `ℕ}
+  ξ-suc : ∀ {Σ Γ} {M M′ : Σ ؛ Γ ⊢ `ℕ}
         → M —→ M′
         -----------------
         → `suc M —→ `suc M′
 
-  ξ-case : ∀ {Γ A} {L L′ : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+  ξ-case : ∀ {Σ Γ A} {L L′ : Σ ؛ Γ ⊢ `ℕ} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
          → L —→ L′
            -------------------------
            → case L M N —→ case L′ M N
 
-  β-zero :  ∀ {Γ A} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+  β-zero :  ∀ {Σ Γ A} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
          -------------------
          → case `zero M N —→ M
 
-  β-suc : ∀ {Γ A} {V : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+  β-suc : ∀ {Σ Γ A} {V : Σ ؛ Γ ⊢ `ℕ} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
         → Value V
         ----------------------------
         → case (`suc V) M N —→ N [ V ]
 
-  β-μ : ∀ {Γ A} {N : Γ , A ⊢ A}
+  β-μ : ∀ {Σ Γ A} {N : Σ ؛ Γ , A ⊢ A}
       ----------------
       → μ N —→ N [ μ N ]
 
@@ -192,63 +194,63 @@ infix  1 begin_
 infixr 2 _—→⟨_⟩_
 infix  3 _∎
 
-data _—↠_ : ∀ {Γ A} → (Γ ⊢ A) → (Γ ⊢ A) → Set where
+data _—↠_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
 
-  _∎ : ∀ {Γ A} (M : Γ ⊢ A)
+  _∎ : ∀ {Σ Γ A} (M : Σ ؛ Γ ⊢ A)
      ------
      → M —↠ M
 
-  _—→⟨_⟩_ : ∀ {Γ A} (L : Γ ⊢ A) {M N : Γ ⊢ A}
+  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ؛ Γ ⊢ A) {M N : Σ ؛ Γ ⊢ A}
           → L —→ M
           → M —↠ N
           ------
           → L —↠ N
 
-begin_ : ∀ {Γ A} {M N : Γ ⊢ A}
+begin_ : ∀ {Σ Γ A} {M N : Σ ؛ Γ ⊢ A}
   → M —↠ N
   ------
   → M —↠ N
 begin M—↠N = M—↠N
 
-data Progress {A} (M : ∅ ⊢ A) : Set where
-  done : Value M → Progress M
-  step : ∀ {N : ∅ ⊢ A} → M —→ N → Progress M
-
-progress : ∀ {A} → (M : ∅ ⊢ A) → Progress M
-progress (ƛ N) = done V-ƛ
-progress (L · M) with progress L
-...    | step L—→L′                     =  step (ξ-·₁ L—→L′)
-...    | done V-ƛ with progress M
-...        | step M—→M′                 =  step (ξ-·₂ V-ƛ M—→M′)
-...        | done VM                    =  step (β-ƛ VM)
-progress (`zero)                        =  done V-zero
-progress (`suc M) with progress M
-...    | step M—→M′                     =  step (ξ-suc M—→M′)
-...    | done VM                        =  done (V-suc VM)
-progress (case L M N) with progress L
-...    | step L—→L′                     =  step (ξ-case L—→L′)
-...    | done V-zero                    =  step (β-zero)
-...    | done (V-suc VL)                =  step (β-suc VL)
-progress (μ N)                          =  step (β-μ)
-
-data Gas : Set where
-  gas : ℕ → Gas
-
-
-data Finished {Γ A} (N : Γ ⊢ A) : Set where
-  done       : Value N → Finished N
-  out-of-gas : Finished N
-
-data Steps : ∀ {A} → ∅ ⊢ A → Set where
-  steps : ∀ {A} {L N : ∅ ⊢ A}
-        → L —↠ N → Finished N → Steps L
-
-eval : ∀ {A} → Gas → (L : ∅ ⊢ A) → Steps L
-eval (gas zero) L = steps (L ∎) out-of-gas
-eval (gas (suc x)) L with progress L
-... | done VL   = steps (L ∎) (done VL)
-... | step {M} L—→M with eval (gas x) M
-...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
+--data Progress {A} (M : ∅ ⊢ A) : Set where
+--  done : Value M → Progress M
+--  step : ∀ {N : ∅ ⊢ A} → M —→ N → Progress M
+--
+--progress : ∀ {A} → (M : ∅ ⊢ A) → Progress M
+--progress (ƛ N) = done V-ƛ
+--progress (L · M) with progress L
+--...    | step L—→L′                     =  step (ξ-·₁ L—→L′)
+--...    | done V-ƛ with progress M
+--...        | step M—→M′                 =  step (ξ-·₂ V-ƛ M—→M′)
+--...        | done VM                    =  step (β-ƛ VM)
+--progress (`zero)                        =  done V-zero
+--progress (`suc M) with progress M
+--...    | step M—→M′                     =  step (ξ-suc M—→M′)
+--...    | done VM                        =  done (V-suc VM)
+--progress (case L M N) with progress L
+--...    | step L—→L′                     =  step (ξ-case L—→L′)
+--...    | done V-zero                    =  step (β-zero)
+--...    | done (V-suc VL)                =  step (β-suc VL)
+--progress (μ N)                          =  step (β-μ)
+--
+--data Gas : Set where
+--  gas : ℕ → Gas
+--
+--
+--data Finished {Γ A} (N : Γ ⊢ A) : Set where
+--  done       : Value N → Finished N
+--  out-of-gas : Finished N
+--
+--data Steps : ∀ {A} → ∅ ⊢ A → Set where
+--  steps : ∀ {A} {L N : ∅ ⊢ A}
+--        → L —↠ N → Finished N → Steps L
+--
+--eval : ∀ {A} → Gas → (L : ∅ ⊢ A) → Steps L
+--eval (gas zero) L = steps (L ∎) out-of-gas
+--eval (gas (suc x)) L with progress L
+--... | done VL   = steps (L ∎) (done VL)
+--... | step {M} L—→M with eval (gas x) M
+--...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
 
 --mutual
 --  data Term : Set where
