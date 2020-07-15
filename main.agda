@@ -101,8 +101,8 @@ mutual
     bnd : ∀ {Σ Γ}
         → Σ ؛ Γ ⊢ `Cmd → Σ ؛ Γ , `ℕ ⊩ ok
         → Σ ؛ Γ ⊩ ok
-    dcl : ∀ {Σ Γ a}
-        → Σ ؛ Γ ⊢ `ℕ → (Σ , a) ؛ Γ ⊩ ok
+    dcl : ∀ {Σ Γ}
+        → (a : Id) → Σ ؛ Γ ⊢ `ℕ → (Σ , a) ؛ Γ ⊩ ok
         → Σ ؛ Γ ⊩ ok
     get : ∀ {Σ Γ}
         → (a : Id)
@@ -228,13 +228,23 @@ data Map : Set where
   ∅     : Map
   _⊗_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ؛ Γ ⊢ A → Map
 
---data State : Set where
---  _∥_ : ∀ {Σ Γ a} → Σ ؛ Γ ⊩ a → Map → State
+data State : Set where
+  _∥_ : ∀ {Σ Γ a} → Σ ؛ Γ ⊩ a → Map → State
 
 data Final (Σ : Store) : ∀ {Γ A} → Σ ؛ Γ ⊩ A → Map → Set where
-  F-ret : ∀ {Γ v μ} → Value Σ {Γ} v → Final Σ (ret v) μ
+  F-ret : ∀ {Γ V μ} → Value Σ {Γ} V → Final Σ (ret V) μ
 
---data StepC : ∀ {Σ Γ A} → Σ ؛ Γ ⊩ A → Map → Σ ؛ Γ ⊩ A → Map → Set where
+data StepC : State → State → Set where
+  S-ret  : ∀ {Σ Γ M M' μ}
+         → Step {Σ} {Γ} M M'
+         -------------
+         → StepC (ret M ∥ μ) (ret M' ∥ μ)
+  S-bnd  : ∀ {Σ Γ M M' C μ}
+         → Step {Σ} {Γ} M M'
+         → StepC (bnd M C ∥ μ) (bnd M' C ∥ μ)
+  S-bndv : ∀ {Σ Γ V C μ}
+         → Value Σ V
+         → StepC (bnd (cmd (ret V)) C ∥ μ) ({!!} ∥ μ)
 
 --data _∥_—↦_∥_ : State → Store → State → Set where
 --  S-ret : ∀ {M M' μ}
