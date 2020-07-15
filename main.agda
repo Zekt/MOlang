@@ -174,6 +174,10 @@ _[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Γ , B} {Γ} σ N
     σ Z      = M
     σ (S x) = ` x
 
+_C[_] : ∀ {Σ Γ A B}
+      → Σ ؛ Γ , B ⊩ A → Σ ؛ Γ ⊢ B
+      → Σ ؛ Γ ⊩ A
+
 data Value (Σ : Store) : ∀ {Γ A} → Σ ؛ Γ ⊢ A → Set where
   V-ƛ    : ∀ {Γ A B} {N : Σ ؛ Γ , A ⊢ B} → Value Σ (ƛ N)
   V-zero : ∀ {Γ} → Value Σ (`zero {Σ} {Γ})
