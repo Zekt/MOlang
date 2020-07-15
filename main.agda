@@ -4,6 +4,7 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Data.List using (List; _∷_; [])
+open import Data.Product using (_×_) renaming (_,_ to ⟨_,_⟩)
 --open import Category.Monad.State
 --open import Level
 
@@ -162,6 +163,7 @@ subst σ (`suc N) = `suc (subst σ N)
 subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
 subst σ (μ N) = μ (subst (exts σ) N)
 
+
 _[_] : ∀ {Σ Γ A B}
      → Σ ؛ Γ , B ⊢ A → Σ ؛ Γ ⊢ B
      -------------------
@@ -172,74 +174,96 @@ _[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Γ , B} {Γ} σ N
     σ Z      = M
     σ (S x) = ` x
 
-data Value : ∀ {Σ Γ A} → Σ ؛ Γ ⊢ A → Set where
-  V-ƛ    : ∀ {Σ Γ A B} {N : Σ ؛ Γ , A ⊢ B} → Value (ƛ N)
-  V-zero : ∀ {Σ Γ} → Value (`zero {Σ} {Γ})
-  V-suc  : ∀ {Σ Γ} {V : Σ ؛ Γ ⊢ `ℕ} → Value V → Value (`suc V)
+data Value (Σ : Store) : ∀ {Γ A} → Σ ؛ Γ ⊢ A → Set where
+  V-ƛ    : ∀ {Γ A B} {N : Σ ؛ Γ , A ⊢ B} → Value Σ (ƛ N)
+  V-zero : ∀ {Γ} → Value Σ (`zero {Σ} {Γ})
+  V-suc  : ∀ {Γ} {V : Σ ؛ Γ ⊢ `ℕ} → Value Σ V → Value Σ (`suc V)
+  V-cmd  : ∀ {Γ m} → Value Σ (cmd {Σ} {Γ} m)
 
 infix 2 _—→_
 infix 2 _—̀→_
 
-data _—→_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
+data Step : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
   ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ؛ Γ ⊢ A ⇒ B} {M : Σ ؛ Γ ⊢ A}
-       → L —→ L'
-       → L · M —→ L' · M
+       → Step L L'
+       → Step (L · M) (L' · M)
 
   ξ-·₂ : ∀ {Σ Γ A B} {V : Σ ؛ Γ ⊢ A ⇒ B} {M M' : Σ ؛ Γ ⊢ A}
-       → Value V
-       → M —→ M'
-       → V · M —→ V · M'
+       → Value Σ V
+       → Step M M'
+       → Step (V · M) (V · M')
 
   β-ƛ : ∀ {Σ Γ A B} {N : Σ ؛ Γ , A ⊢ B} {W : Σ ؛ Γ ⊢ A}
-       → Value W
+       → Value Σ W
        --------------------
-       → (ƛ N) · W —→ N [ W ]
+       → Step ((ƛ N) · W) (N [ W ])
 
   ξ-suc : ∀ {Σ Γ} {M M′ : Σ ؛ Γ ⊢ `ℕ}
-        → M —→ M′
+        → Step M M′
         -----------------
-        → `suc M —→ `suc M′
+        → Step (`suc M) (`suc M′)
 
   ξ-case : ∀ {Σ Γ A} {L L′ : Σ ؛ Γ ⊢ `ℕ} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
-         → L —→ L′
+         → Step L L′
            -------------------------
-           → case L M N —→ case L′ M N
+         → Step (case L M N) (case L′ M N)
 
   β-zero :  ∀ {Σ Γ A} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
          -------------------
-         → case `zero M N —→ M
+         → Step (case `zero M N) M
 
   β-suc : ∀ {Σ Γ A} {V : Σ ؛ Γ ⊢ `ℕ} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
-        → Value V
+        → Value Σ V
         ----------------------------
-        → case (`suc V) M N —→ N [ V ]
+        → Step (case (`suc V) M N) (N [ V ])
 
   β-μ : ∀ {Σ Γ A} {N : Σ ؛ Γ , A ⊢ A}
       ----------------
-      → μ N —→ N [ μ N ]
+      → Step (μ N) (N [ μ N ])
 
-infix  2 _—↠_
-infix  1 begin_
-infixr 2 _—→⟨_⟩_
-infix  3 _∎
+_—→_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set
+L —→ M = Step L M
 
-data _—↠_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
+data Map : Set where
+  ∅     : Map
+  _⊗_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ؛ Γ ⊢ A → Map
 
-  _∎ : ∀ {Σ Γ A} (M : Σ ؛ Γ ⊢ A)
-     ------
-     → M —↠ M
+--data State : Set where
+--  _∥_ : ∀ {Σ Γ a} → Σ ؛ Γ ⊩ a → Map → State
 
-  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ؛ Γ ⊢ A) {M N : Σ ؛ Γ ⊢ A}
-          → L —→ M
-          → M —↠ N
-          ------
-          → L —↠ N
+data Final (Σ : Store) : ∀ {Γ A} → Σ ؛ Γ ⊩ A → Map → Set where
+  F-ret : ∀ {Γ v μ} → Value Σ {Γ} v → Final Σ (ret v) μ
 
-begin_ : ∀ {Σ Γ A} {M N : Σ ؛ Γ ⊢ A}
-  → M —↠ N
-  ------
-  → M —↠ N
-begin M—↠N = M—↠N
+--data StepC : ∀ {Σ Γ A} → Σ ؛ Γ ⊩ A → Map → Σ ؛ Γ ⊩ A → Map → Set where
+
+--data _∥_—↦_∥_ : State → Store → State → Set where
+--  S-ret : ∀ {M M' μ}
+--        → M —→ M'
+--        ------------
+--        → 
+
+--infix  2 _—↠_
+--infix  1 begin_
+--infixr 2 _—→⟨_⟩_
+--infix  3 _∎
+--
+--data _—↠_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
+--
+--  _∎ : ∀ {Σ Γ A} (M : Σ ؛ Γ ⊢ A)
+--     ------
+--     → M —↠ M
+--
+--  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ؛ Γ ⊢ A) {M N : Σ ؛ Γ ⊢ A}
+--          → L —→ M
+--          → M —↠ N
+--          ------
+--          → L —↠ N
+--
+--begin_ : ∀ {Σ Γ A} {M N : Σ ؛ Γ ⊢ A}
+--  → M —↠ N
+--  ------
+--  → M —↠ N
+--begin M—↠N = M—↠N
 
 --data Progress {A} (M : ∅ ⊢ A) : Set where
 --  done : Value M → Progress M
