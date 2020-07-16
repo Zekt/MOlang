@@ -5,6 +5,7 @@ open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Data.List using (List; _∷_; [])
 open import Data.Product using (_×_) renaming (_,_ to ⟨_,_⟩)
+open import Function using (id)
 --open import Category.Monad.State
 --open import Level
 
@@ -105,11 +106,11 @@ mutual
         → (a : Id) → Σ ؛ Γ ⊢ `ℕ → (Σ , a) ؛ Γ ⊩ ok
         → Σ ؛ Γ ⊩ ok
     get : ∀ {Σ Γ}
-        → (a : Id)
-        → (Σ , a) ؛ Γ ⊩ ok
+        → (a : Id) → Σ ∋ₛ a
+        → Σ ؛ Γ ⊩ ok
     set : ∀ {Σ Γ}
-        → (a : Id) → (Σ , a) ؛ Γ ⊢ `ℕ
-        → (Σ , a) ؛ Γ ⊩ ok
+        → (a : Id) → Σ ∋ₛ a → Σ ؛ Γ ⊢ `ℕ
+        → Σ ؛ Γ ⊩ ok
 
 lookup : Context → ℕ → Type
 lookup (Γ , A) zero    = A
@@ -133,46 +134,96 @@ ext : ∀ {Γ Δ}
 ext ρ Z     = Z
 ext ρ (S x) = S (ρ x)
 
-rename : ∀ {Σ Γ Δ}
-       → (∀ {A} → Γ ∋ A → Δ ∋ A)
-       ----------------------------------
-       → (∀ {A} → Σ ؛ Γ ⊢ A → Σ ؛ Δ ⊢ A)
-rename ρ (` w)        = ` (ρ w)
-rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
-rename ρ (L · M)      = (rename ρ L) · (rename ρ M)
-rename ρ `zero        = `zero
-rename ρ (`suc M)     = `suc (rename ρ M)
-rename ρ (case L M N) = case (rename ρ L) (rename ρ M) (rename (ext ρ) N)
-rename ρ (μ M)        = μ (rename (ext ρ) M)
+ext' : ∀ {Σ Ω}
+     → (∀ {a}   → Σ ∋ₛ a     → Ω ∋ₛ a)
+     -----------------------------------
+     → (∀ {a b} → Σ , b ∋ₛ a → Ω , b ∋ₛ a)
+ext' ρ Z     = Z
+ext' ρ (S x) = S (ρ x)
+
+--ext' : ∀ {Σ Γ A a}
+--     → Σ ؛ Γ ⊢ A → (Σ , a) ؛ Γ ⊢ A
+--ext' (` x) = ` x
+--ext' (ƛ N) = ƛ (ext' N)
+--ext' (L · M) = (ext' L) · (ext' M)
+--ext' `zero = `zero
+--ext' (`suc M) = `suc (ext' M)
+--ext' (case L M N) = case (ext' L) (ext' M) (ext' N)
+--ext' (μ M) = μ (ext' M)
+--ext' (cmd C) = cmd {!!}
+
+mutual
+  rename : ∀ {Σ Ω Γ Δ}
+         → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
+         → (∀ {A} → Γ ∋ A  → Δ ∋ A)
+         ----------------------------------
+         → (∀ {A} → Σ ؛ Γ ⊢ A → Ω ؛ Δ ⊢ A)
+  rename τ ρ (` w)        = ` (ρ w)
+  rename τ ρ (ƛ N)        = ƛ (rename τ (ext ρ) N)
+  rename τ ρ (L · M)      = (rename τ ρ L) · (rename τ ρ M)
+  rename τ ρ `zero        = `zero
+  rename τ ρ (`suc M)     = `suc (rename τ ρ M)
+  rename τ ρ (case L M N) = case (rename τ ρ L) (rename τ ρ M) (rename τ (ext ρ) N)
+  rename τ ρ (μ M)        = μ (rename τ (ext ρ) M)
+  rename τ ρ (cmd C)      = cmd (rename' τ ρ C)
+
+--For now, A in _؛_⊩_ must be ok.
+  rename' : ∀ {Σ Ω Γ Δ}
+          → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
+          → (∀ {A} → Γ ∋ A  → Δ ∋ A)
+          → (∀ {A} → Σ ؛ Γ ⊩ A → Ω ؛ Δ ⊩ A)
+  rename' τ ρ (ret M)      = ret (rename τ ρ M)
+  rename' τ ρ (bnd M C)    = bnd (rename τ ρ M) (rename' τ (ext ρ) C)
+  rename' τ ρ (dcl x M C)  = dcl x (rename τ ρ M) (rename' (ext' τ) ρ C)
+  rename' τ ρ (get x ∋x)   = get x (τ ∋x)
+  rename' τ ρ (set x ∋x M) = set x (τ ∋x) (rename τ ρ M)
 
 exts : ∀ {Σ Γ Δ}
      → (∀ {A}   →     Γ ∋ A → Σ ؛ Δ ⊢ A)
      → (∀ {A B} → Γ , B ∋ A → Σ ؛ Δ , B ⊢ A)
 exts ρ Z     = ` Z
-exts ρ (S x) = rename S (ρ x)
+exts ρ (S x) = rename id S (ρ x)
 
-subst : ∀ {Σ Γ Δ}
-      → (∀ {A} → Γ ∋ A → Σ ؛ Δ ⊢ A)
-      -------------------------
-      → (∀ {A} → Σ ؛ Γ ⊢ A → Σ ؛ Δ ⊢ A)
-subst σ (` x) = σ x
-subst σ (ƛ N) = ƛ (subst (exts σ) N)
-subst σ (L · M) = (subst σ L) · (subst σ M)
-subst σ `zero = `zero
-subst σ (`suc N) = `suc (subst σ N)
-subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
-subst σ (μ N) = μ (subst (exts σ) N)
+exts' : ∀ {Σ Γ Δ}
+     → (∀ {A}   → Γ ∋ A → Σ ؛ Δ ⊢ A)
+     → (∀ {A a} → Γ ∋ A → Σ , a ؛ Δ ⊢ A)
+exts' ρ Z = ` {!Z!}
+exts' ρ (S x) = {!!}
+
+mutual
+  subst : ∀ {Σ Ω Γ Δ}
+        → (∀ {a A} → Σ ∋ₛ a → Γ ∋ A → Ω ؛ Δ ⊢ A)
+        -------------------------
+        → (∀ {A} → Σ ؛ Γ ⊢ A → Ω ؛ Δ ⊢ A)
+  subst σ (` x) = σ {!!} x
+  --subst σ (ƛ N) = ƛ (subst (exts σ) N)
+  --subst σ (L · M) = (subst σ L) · (subst σ M)
+  --subst σ `zero = `zero
+  --subst σ (`suc N) = `suc (subst σ N)
+  --subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
+  --subst σ (μ N) = μ (subst (exts σ) N)
+  --subst σ (cmd C) = cmd (subst' σ C)
+
+  --For now, A in _؛_⊩_ must be ok.
+  subst' : ∀ {Σ Γ Δ}
+         → (∀ {A} → Γ ∋ A → Σ ؛ Δ ⊢ A)
+         → (∀ {A} → Σ ؛ Γ ⊩ A → Σ ؛ Δ ⊩ A)
+  --subst' σ (ret M)     = ret (subst σ M)
+  --subst' σ (bnd M C)   = bnd (subst σ M) (subst' (exts σ) C)
+  --subst' σ (dcl x M C) = dcl x (subst σ M) (subst' {!!} C)
+  --subst' σ (get x ∋x)     = get x ∋x
+  --subst' σ (set x ∋x M)   = {!!}
 
 
 _[_] : ∀ {Σ Γ A B}
      → Σ ؛ Γ , B ⊢ A → Σ ؛ Γ ⊢ B
      -------------------
      → Σ ؛ Γ ⊢ A
-_[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Γ , B} {Γ} σ N
-  where
-    σ : ∀ {A} → Γ , B ∋ A → Σ ؛ Γ ⊢ A
-    σ Z      = M
-    σ (S x) = ` x
+--_[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Γ , B} {Γ} σ N
+--  where
+--    σ : ∀ {A} → Γ , B ∋ A → Σ ؛ Γ ⊢ A
+--    σ Z      = M
+--    σ (S x) = ` x
 
 _C[_] : ∀ {Σ Γ A B}
       → Σ ؛ Γ , B ⊩ A → Σ ؛ Γ ⊢ B
