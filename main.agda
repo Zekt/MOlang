@@ -11,7 +11,7 @@ open import Function using (id)
 
 module main where
 
-infix  4 _؛_⊢_
+infix  4 _⁏_⊢_
 infix  4 _∋_
 infix  4 _∋ₛ_
 infix  5 _,_
@@ -56,61 +56,61 @@ data _∋ₛ_ : Store → Id → Set where
   S : ∀ {Σ a b} → Σ ∋ₛ a → Σ , b ∋ₛ a
 
 mutual
-  data _؛_⊢_ : Store → Context → Type → Set where
+  data _⁏_⊢_ : Store → Context → Type → Set where
     ` : ∀ {Σ Γ A}
        → Γ ∋ A
        ------------
-       → Σ ؛ Γ ⊢ A
+       → Σ ⁏ Γ ⊢ A
 
     ƛ : ∀ {Σ Γ A B}
-       → Σ ؛ Γ , A ⊢ B
+       → Σ ⁏ Γ , A ⊢ B
        --------------------
-       → Σ ؛ Γ ⊢ A ⇒ B
+       → Σ ⁏ Γ ⊢ A ⇒ B
     -- ⇒-E
     _·_ : ∀ {Σ Γ A B}
-        → Σ ؛ Γ ⊢ A ⇒ B   → Σ ؛ Γ ⊢ A
+        → Σ ⁏ Γ ⊢ A ⇒ B   → Σ ⁏ Γ ⊢ A
         ------------------------------
-        → Σ ؛ Γ ⊢ B
+        → Σ ⁏ Γ ⊢ B
     -- ℕ-I₁
     `zero : ∀ {Σ Γ}
           --------------
-          → Σ ؛ Γ ⊢ `ℕ
+          → Σ ⁏ Γ ⊢ `ℕ
     -- ℕ-I₂
     `suc : ∀ {Σ Γ}
-         → Σ ؛ Γ ⊢ `ℕ
+         → Σ ⁏ Γ ⊢ `ℕ
          ---------------
-         → Σ ؛ Γ ⊢ `ℕ
+         → Σ ⁏ Γ ⊢ `ℕ
     -- ℕ-E
     case : ∀ {Σ Γ A}
-         → Σ ؛ Γ ⊢ `ℕ   → Σ ؛ Γ ⊢ A   → Σ ؛ Γ , `ℕ ⊢ A
+         → Σ ⁏ Γ ⊢ `ℕ   → Σ ⁏ Γ ⊢ A   → Σ ⁏ Γ , `ℕ ⊢ A
          ----------------------------------------------
-         → Σ ؛ Γ ⊢ A
+         → Σ ⁏ Γ ⊢ A
 
     μ : ∀ {Σ Γ A}
-      → Σ ؛ Γ , A ⊢ A
+      → Σ ⁏ Γ , A ⊢ A
       -----------------
-      → Σ ؛ Γ ⊢ A
+      → Σ ⁏ Γ ⊢ A
 
     cmd : ∀ {Σ Γ}
-        → Σ ؛ Γ ⊩ ok
-        → Σ ؛ Γ ⊢ `Cmd
+        → Σ ⁏ Γ ⊩ ok
+        → Σ ⁏ Γ ⊢ `Cmd
 
-  data _؛_⊩_ : Store → Context → CType → Set where
+  data _⁏_⊩_ : Store → Context → CType → Set where
     ret : ∀ {Σ Γ}
-        → Σ ؛ Γ ⊢ `ℕ
-        → Σ ؛ Γ ⊩ ok
+        → Σ ⁏ Γ ⊢ `ℕ
+        → Σ ⁏ Γ ⊩ ok
     bnd : ∀ {Σ Γ}
-        → Σ ؛ Γ ⊢ `Cmd → Σ ؛ Γ , `ℕ ⊩ ok
-        → Σ ؛ Γ ⊩ ok
+        → Σ ⁏ Γ ⊢ `Cmd → Σ ⁏ Γ , `ℕ ⊩ ok
+        → Σ ⁏ Γ ⊩ ok
     dcl : ∀ {Σ Γ}
-        → (a : Id) → Σ ؛ Γ ⊢ `ℕ → (Σ , a) ؛ Γ ⊩ ok
-        → Σ ؛ Γ ⊩ ok
+        → (a : Id) → Σ ⁏ Γ ⊢ `ℕ → (Σ , a) ⁏ Γ ⊩ ok
+        → Σ ⁏ Γ ⊩ ok
     get : ∀ {Σ Γ}
         → (a : Id) → Σ ∋ₛ a
-        → Σ ؛ Γ ⊩ ok
+        → Σ ⁏ Γ ⊩ ok
     set : ∀ {Σ Γ}
-        → (a : Id) → Σ ∋ₛ a → Σ ؛ Γ ⊢ `ℕ
-        → Σ ؛ Γ ⊩ ok
+        → (a : Id) → Σ ∋ₛ a → Σ ⁏ Γ ⊢ `ℕ
+        → Σ ⁏ Γ ⊩ ok
 
 lookup : Context → ℕ → Type
 lookup (Γ , A) zero    = A
@@ -124,7 +124,7 @@ count {Γ , _} (suc n) = S (count n)
 count {∅}     _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
-#_ : ∀ {Σ Γ} → (n : ℕ) → Σ ؛ Γ ⊢ lookup Γ n
+#_ : ∀ {Σ Γ} → (n : ℕ) → Σ ⁏ Γ ⊢ lookup Γ n
 # n = ` (count n)
 
 ext : ∀ {Γ Δ}
@@ -142,7 +142,7 @@ ext' ρ Z     = Z
 ext' ρ (S x) = S (ρ x)
 
 --ext' : ∀ {Σ Γ A a}
---     → Σ ؛ Γ ⊢ A → (Σ , a) ؛ Γ ⊢ A
+--     → Σ ⁏ Γ ⊢ A → (Σ , a) ⁏ Γ ⊢ A
 --ext' (` x) = ` x
 --ext' (ƛ N) = ƛ (ext' N)
 --ext' (L · M) = (ext' L) · (ext' M)
@@ -157,7 +157,7 @@ mutual
          → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
          → (∀ {A} → Γ ∋ A  → Δ ∋ A)
          ----------------------------------
-         → (∀ {A} → Σ ؛ Γ ⊢ A → Ω ؛ Δ ⊢ A)
+         → (∀ {A} → Σ ⁏ Γ ⊢ A → Ω ⁏ Δ ⊢ A)
   rename τ ρ (` w)        = ` (ρ w)
   rename τ ρ (ƛ N)        = ƛ (rename τ (ext ρ) N)
   rename τ ρ (L · M)      = (rename τ ρ L) · (rename τ ρ M)
@@ -167,11 +167,11 @@ mutual
   rename τ ρ (μ M)        = μ (rename τ (ext ρ) M)
   rename τ ρ (cmd C)      = cmd (rename' τ ρ C)
 
---For now, A in _؛_⊩_ must be ok.
+--For now, A in _⁏_⊩_ must be ok.
   rename' : ∀ {Σ Ω Γ Δ}
           → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
           → (∀ {A} → Γ ∋ A  → Δ ∋ A)
-          → (∀ {A} → Σ ؛ Γ ⊩ A → Ω ؛ Δ ⊩ A)
+          → (∀ {A} → Σ ⁏ Γ ⊩ A → Ω ⁏ Δ ⊩ A)
   rename' τ ρ (ret M)      = ret (rename τ ρ M)
   rename' τ ρ (bnd M C)    = bnd (rename τ ρ M) (rename' τ (ext ρ) C)
   rename' τ ρ (dcl x M C)  = dcl x (rename τ ρ M) (rename' (ext' τ) ρ C)
@@ -179,23 +179,23 @@ mutual
   rename' τ ρ (set x ∋x M) = set x (τ ∋x) (rename τ ρ M)
 
 exts : ∀ {Σ Γ Δ}
-     → (∀ {A}   →     Γ ∋ A → Σ ؛ Δ ⊢ A)
-     → (∀ {A B} → Γ , B ∋ A → Σ ؛ Δ , B ⊢ A)
+     → (∀ {A}   →     Γ ∋ A → Σ ⁏ Δ ⊢ A)
+     → (∀ {A B} → Γ , B ∋ A → Σ ⁏ Δ , B ⊢ A)
 exts ρ Z     = ` Z
 exts ρ (S x) = rename id S (ρ x)
 
 exts' : ∀ {Σ Γ Δ}
-     → (∀ {A}   → Γ ∋ A → Σ ؛ Δ ⊢ A)
-     → (∀ {A a} → Γ ∋ A → Σ , a ؛ Δ ⊢ A)
+     → (∀ {A}   → Γ ∋ A → Σ ⁏ Δ ⊢ A)
+     → (∀ {A a} → Γ ∋ A → Σ , a ⁏ Δ ⊢ A)
 exts' ρ Z = ` {!Z!}
 exts' ρ (S x) = {!!}
 
 mutual
-  subst : ∀ {Σ Ω Γ Δ}
-        → (∀ {a A} → Σ ∋ₛ a → Γ ∋ A → Ω ؛ Δ ⊢ A)
+  subst : ∀ {Σ Γ Δ}
+        → (∀ {A} → Γ ∋ A → Σ ⁏ Δ ⊢ A)
         -------------------------
-        → (∀ {A} → Σ ؛ Γ ⊢ A → Ω ؛ Δ ⊢ A)
-  subst σ (` x) = σ {!!} x
+        → (∀ {A} → Σ ⁏ Γ ⊢ A → Σ ⁏ Δ ⊢ A)
+  subst σ (` x) = σ {!!}
   --subst σ (ƛ N) = ƛ (subst (exts σ) N)
   --subst σ (L · M) = (subst σ L) · (subst σ M)
   --subst σ `zero = `zero
@@ -204,10 +204,10 @@ mutual
   --subst σ (μ N) = μ (subst (exts σ) N)
   --subst σ (cmd C) = cmd (subst' σ C)
 
-  --For now, A in _؛_⊩_ must be ok.
+  --For now, A in _⁏_⊩_ must be ok.
   subst' : ∀ {Σ Γ Δ}
-         → (∀ {A} → Γ ∋ A → Σ ؛ Δ ⊢ A)
-         → (∀ {A} → Σ ؛ Γ ⊩ A → Σ ؛ Δ ⊩ A)
+         → (∀ {A} → Γ ∋ A → Σ ⁏ Δ ⊢ A)
+         → (∀ {A} → Σ ⁏ Γ ⊩ A → Σ ⁏ Δ ⊩ A)
   --subst' σ (ret M)     = ret (subst σ M)
   --subst' σ (bnd M C)   = bnd (subst σ M) (subst' (exts σ) C)
   --subst' σ (dcl x M C) = dcl x (subst σ M) (subst' {!!} C)
@@ -216,77 +216,77 @@ mutual
 
 
 _[_] : ∀ {Σ Γ A B}
-     → Σ ؛ Γ , B ⊢ A → Σ ؛ Γ ⊢ B
+     → Σ ⁏ Γ , B ⊢ A → Σ ⁏ Γ ⊢ B
      -------------------
-     → Σ ؛ Γ ⊢ A
+     → Σ ⁏ Γ ⊢ A
 --_[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Γ , B} {Γ} σ N
 --  where
---    σ : ∀ {A} → Γ , B ∋ A → Σ ؛ Γ ⊢ A
+--    σ : ∀ {A} → Γ , B ∋ A → Σ ⁏ Γ ⊢ A
 --    σ Z      = M
 --    σ (S x) = ` x
 
 _C[_] : ∀ {Σ Γ A B}
-      → Σ ؛ Γ , B ⊩ A → Σ ؛ Γ ⊢ B
-      → Σ ؛ Γ ⊩ A
+      → Σ ⁏ Γ , B ⊩ A → Σ ⁏ Γ ⊢ B
+      → Σ ⁏ Γ ⊩ A
 
-data Value (Σ : Store) : ∀ {Γ A} → Σ ؛ Γ ⊢ A → Set where
-  V-ƛ    : ∀ {Γ A B} {N : Σ ؛ Γ , A ⊢ B} → Value Σ (ƛ N)
+data Value (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊢ A → Set where
+  V-ƛ    : ∀ {Γ A B} {N : Σ ⁏ Γ , A ⊢ B} → Value Σ (ƛ N)
   V-zero : ∀ {Γ} → Value Σ (`zero {Σ} {Γ})
-  V-suc  : ∀ {Γ} {V : Σ ؛ Γ ⊢ `ℕ} → Value Σ V → Value Σ (`suc V)
+  V-suc  : ∀ {Γ} {V : Σ ⁏ Γ ⊢ `ℕ} → Value Σ V → Value Σ (`suc V)
   V-cmd  : ∀ {Γ m} → Value Σ (cmd {Σ} {Γ} m)
 
 infix 2 _—→_
 infix 2 _—̀→_
 
-data Step : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
-  ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ؛ Γ ⊢ A ⇒ B} {M : Σ ؛ Γ ⊢ A}
+data Step : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
+  ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ⁏ Γ ⊢ A ⇒ B} {M : Σ ⁏ Γ ⊢ A}
        → Step L L'
        → Step (L · M) (L' · M)
 
-  ξ-·₂ : ∀ {Σ Γ A B} {V : Σ ؛ Γ ⊢ A ⇒ B} {M M' : Σ ؛ Γ ⊢ A}
+  ξ-·₂ : ∀ {Σ Γ A B} {V : Σ ⁏ Γ ⊢ A ⇒ B} {M M' : Σ ⁏ Γ ⊢ A}
        → Value Σ V
        → Step M M'
        → Step (V · M) (V · M')
 
-  β-ƛ : ∀ {Σ Γ A B} {N : Σ ؛ Γ , A ⊢ B} {W : Σ ؛ Γ ⊢ A}
+  β-ƛ : ∀ {Σ Γ A B} {N : Σ ⁏ Γ , A ⊢ B} {W : Σ ⁏ Γ ⊢ A}
        → Value Σ W
        --------------------
        → Step ((ƛ N) · W) (N [ W ])
 
-  ξ-suc : ∀ {Σ Γ} {M M′ : Σ ؛ Γ ⊢ `ℕ}
+  ξ-suc : ∀ {Σ Γ} {M M′ : Σ ⁏ Γ ⊢ `ℕ}
         → Step M M′
         -----------------
         → Step (`suc M) (`suc M′)
 
-  ξ-case : ∀ {Σ Γ A} {L L′ : Σ ؛ Γ ⊢ `ℕ} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
+  ξ-case : ∀ {Σ Γ A} {L L′ : Σ ⁏ Γ ⊢ `ℕ} {M : Σ ⁏ Γ ⊢ A} {N : Σ ⁏ Γ , `ℕ ⊢ A}
          → Step L L′
            -------------------------
          → Step (case L M N) (case L′ M N)
 
-  β-zero :  ∀ {Σ Γ A} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
+  β-zero :  ∀ {Σ Γ A} {M : Σ ⁏ Γ ⊢ A} {N : Σ ⁏ Γ , `ℕ ⊢ A}
          -------------------
          → Step (case `zero M N) M
 
-  β-suc : ∀ {Σ Γ A} {V : Σ ؛ Γ ⊢ `ℕ} {M : Σ ؛ Γ ⊢ A} {N : Σ ؛ Γ , `ℕ ⊢ A}
+  β-suc : ∀ {Σ Γ A} {V : Σ ⁏ Γ ⊢ `ℕ} {M : Σ ⁏ Γ ⊢ A} {N : Σ ⁏ Γ , `ℕ ⊢ A}
         → Value Σ V
         ----------------------------
         → Step (case (`suc V) M N) (N [ V ])
 
-  β-μ : ∀ {Σ Γ A} {N : Σ ؛ Γ , A ⊢ A}
+  β-μ : ∀ {Σ Γ A} {N : Σ ⁏ Γ , A ⊢ A}
       ----------------
       → Step (μ N) (N [ μ N ])
 
-_—→_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set
+_—→_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set
 L —→ M = Step L M
 
 data Map : Set where
   ∅     : Map
-  _⊗_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ؛ Γ ⊢ A → Map
+  _⊗_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ⁏ Γ ⊢ A → Map
 
 data State : Set where
-  _∥_ : ∀ {Σ Γ a} → Σ ؛ Γ ⊩ a → Map → State
+  _∥_ : ∀ {Σ Γ a} → Σ ⁏ Γ ⊩ a → Map → State
 
-data Final (Σ : Store) : ∀ {Γ A} → Σ ؛ Γ ⊩ A → Map → Set where
+data Final (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊩ A → Map → Set where
   F-ret : ∀ {Γ V μ} → Value Σ {Γ} V → Final Σ (ret V) μ
 
 data StepC : State → State → Set where
@@ -312,19 +312,19 @@ data StepC : State → State → Set where
 --infixr 2 _—→⟨_⟩_
 --infix  3 _∎
 --
---data _—↠_ : ∀ {Σ Γ A} → (Σ ؛ Γ ⊢ A) → (Σ ؛ Γ ⊢ A) → Set where
+--data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
 --
---  _∎ : ∀ {Σ Γ A} (M : Σ ؛ Γ ⊢ A)
+--  _∎ : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
 --     ------
 --     → M —↠ M
 --
---  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ؛ Γ ⊢ A) {M N : Σ ؛ Γ ⊢ A}
+--  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
 --          → L —→ M
 --          → M —↠ N
 --          ------
 --          → L —↠ N
 --
---begin_ : ∀ {Σ Γ A} {M N : Σ ؛ Γ ⊢ A}
+--begin_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
 --  → M —↠ N
 --  ------
 --  → M —↠ N
