@@ -185,49 +185,55 @@ exts ρ Z     = ` Z
 exts ρ (S x) = rename id S (ρ x)
 
 exts' : ∀ {Σ Γ Δ}
-     → (∀ {A}   → Γ ∋ A → Σ ⁏ Δ ⊢ A)
-     → (∀ {A a} → Γ ∋ A → Σ , a ⁏ Δ ⊢ A)
-exts' ρ Z = ` {!Z!}
-exts' ρ (S x) = {!!}
+      → (∀ {A}   → Γ ∋ A → Σ ⁏ Δ ⊢ A)
+      → (∀ {A a} → Γ ∋ A → Σ , a ⁏ Δ ⊢ A)
+exts' ρ ∋A = rename S id (ρ ∋A)
 
 mutual
-  subst : ∀ {Σ Γ Δ}
-        → (∀ {A} → Γ ∋ A → Σ ⁏ Δ ⊢ A)
+  subst : ∀ {Σ Ω Γ Δ}
+        → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
+        → (∀ {A} → Γ ∋ A  → Ω ⁏ Δ ⊢ A)
         -------------------------
-        → (∀ {A} → Σ ⁏ Γ ⊢ A → Σ ⁏ Δ ⊢ A)
-  subst σ (` x) = σ {!!}
-  --subst σ (ƛ N) = ƛ (subst (exts σ) N)
-  --subst σ (L · M) = (subst σ L) · (subst σ M)
-  --subst σ `zero = `zero
-  --subst σ (`suc N) = `suc (subst σ N)
-  --subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
-  --subst σ (μ N) = μ (subst (exts σ) N)
-  --subst σ (cmd C) = cmd (subst' σ C)
+        → (∀ {A} → Σ ⁏ Γ ⊢ A → Ω ⁏ Δ ⊢ A)
+  subst τ σ (` x)        = σ x
+  subst τ σ (ƛ N)        = ƛ (subst τ (exts σ) N)
+  subst τ σ (L · M)      = (subst τ σ L) · (subst τ σ M)
+  subst τ σ `zero        = `zero
+  subst τ σ (`suc N)     = `suc (subst τ σ N)
+  subst τ σ (case L M N) = case (subst τ σ L) (subst τ σ M) (subst τ (exts σ) N)
+  subst τ σ (μ N)        = μ (subst τ (exts σ) N)
+  subst τ σ (cmd C)      = cmd (subst' τ σ C)
 
-  --For now, A in _⁏_⊩_ must be ok.
-  subst' : ∀ {Σ Γ Δ}
-         → (∀ {A} → Γ ∋ A → Σ ⁏ Δ ⊢ A)
-         → (∀ {A} → Σ ⁏ Γ ⊩ A → Σ ⁏ Δ ⊩ A)
-  --subst' σ (ret M)     = ret (subst σ M)
-  --subst' σ (bnd M C)   = bnd (subst σ M) (subst' (exts σ) C)
-  --subst' σ (dcl x M C) = dcl x (subst σ M) (subst' {!!} C)
-  --subst' σ (get x ∋x)     = get x ∋x
-  --subst' σ (set x ∋x M)   = {!!}
+--For now, A in _⁏_⊩_ must be ok.
+  subst' : ∀ {Σ Ω Γ Δ}
+         → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
+         → (∀ {A} → Γ ∋ A → Ω ⁏ Δ ⊢ A)
+         → (∀ {A} → Σ ⁏ Γ ⊩ A → Ω ⁏ Δ ⊩ A)
+  subst' τ σ (ret M)      = ret (subst τ σ M)
+  subst' τ σ (bnd M C)    = bnd (subst τ σ M) (subst' τ (exts σ) C)
+  subst' τ σ (dcl x M C)  = dcl x (subst τ σ M) (subst' (ext' τ) (exts' σ) C)
+  subst' τ σ (get x ∋x)   = get x (τ ∋x)
+  subst' τ σ (set x ∋x M) = set x (τ ∋x) (subst τ σ M)
 
 
 _[_] : ∀ {Σ Γ A B}
      → Σ ⁏ Γ , B ⊢ A → Σ ⁏ Γ ⊢ B
      -------------------
      → Σ ⁏ Γ ⊢ A
---_[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Γ , B} {Γ} σ N
---  where
---    σ : ∀ {A} → Γ , B ∋ A → Σ ⁏ Γ ⊢ A
---    σ Z      = M
---    σ (S x) = ` x
+_[_] {Σ} {Γ} {A} {B} N M = subst {Σ} {Σ} {Γ , B} {Γ} id σ N
+  where
+    σ : ∀ {A} → Γ , B ∋ A → Σ ⁏ Γ ⊢ A
+    σ Z     = M
+    σ (S x) = ` x
 
-_C[_] : ∀ {Σ Γ A B}
+_[_]c : ∀ {Σ Γ A B}
       → Σ ⁏ Γ , B ⊩ A → Σ ⁏ Γ ⊢ B
       → Σ ⁏ Γ ⊩ A
+_[_]c {Σ} {Γ} {A} {B} C M = subst' {Σ} {Σ} {Γ , B} {Γ} id σ C
+  where
+    σ : ∀ {A} → Γ , B ∋ A → Σ ⁏ Γ ⊢ A
+    σ Z     = M
+    σ (S x) = ` x
 
 data Value (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊢ A → Set where
   V-ƛ    : ∀ {Γ A B} {N : Σ ⁏ Γ , A ⊢ B} → Value Σ (ƛ N)
@@ -297,9 +303,13 @@ data StepC : State → State → Set where
   S-bnd  : ∀ {Σ Γ M M' C μ}
          → Step {Σ} {Γ} M M'
          → StepC (bnd M C ∥ μ) (bnd M' C ∥ μ)
-  S-bndv : ∀ {Σ Γ V C μ}
-         → Value Σ V
-         → StepC (bnd (cmd (ret V)) C ∥ μ) ({!!} ∥ μ)
+  S-bndret : ∀ {Σ Γ V C μ}
+           → Value Σ {Γ} V
+           → StepC (bnd (cmd (ret V)) C ∥ μ) ((C [ V ]c) ∥ μ)
+  --TODO
+  S-bndcmd : ∀ {Σ Γ m m' μ μ' n}
+           → StepC ( _∥_ {Σ} {Γ} m μ) (m' ∥ μ')
+           → StepC (bnd (cmd m) n ∥ μ) (bnd (cmd m') n ∥ μ')
 
 --data _∥_—↦_∥_ : State → Store → State → Set where
 --  S-ret : ∀ {M M' μ}
