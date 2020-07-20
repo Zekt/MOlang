@@ -305,7 +305,7 @@ data _∋ₘ_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ⁏ Γ ⊢ A → Set whe
 
 data _⦂_ : Map → Store → Set where
   dom⊇ : ∀ {μ Σ}
-        → (∀ {a Γ A} → Σ ∋ₛ a → Σ[ V ∈ Σ ⁏ Γ ⊢ A ] (μ ∋ₘ a ↪ V × Value Σ V))
+        → (∀ {a Γ} → Σ ∋ₛ a → Σ[ V ∈ ∅ ⁏ Γ ⊢ `ℕ ] (μ ∋ₘ a ↪ V × Value ∅ V))
         → μ ⦂ Σ
 
 data State : Set where
@@ -321,11 +321,12 @@ data Final (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊩ A → Map → Set where
 data StepC : Store → State → State → Set where
   ξ-ret  : ∀ {Σ Γ M M' μ}
          → Step {Σ} {Γ} M M'
-         -------------
          → StepC Σ (ret M ∥ μ) (ret M' ∥ μ)
+
   ξ-bnd  : ∀ {Σ Γ M M' C μ}
          → Step {Σ} {Γ} M M'
          → StepC Σ (bnd M C ∥ μ) (bnd M' C ∥ μ)
+
   β-bndret : ∀ {Σ Γ V C μ}
            → Value Σ {Γ} V
            → StepC Σ (bnd (cmd (ret V)) C ∥ μ) ((C [ V ]c) ∥ μ)
@@ -333,6 +334,7 @@ data StepC : Store → State → State → Set where
   ξ-bndcmd : ∀ {Σ Γ μ μ' n} → (m m' : Σ ⁏ Γ ⊩ ok)
            → StepC Σ (m ∥ μ) (m' ∥ μ')
            → StepC Σ (bnd (cmd m) n ∥ μ) (bnd (cmd m') n ∥ μ')
+
   β-get : ∀ {Σ Γ μ x} {E : Σ ⁏ Γ ⊢ `ℕ}
         → {∋x : Σ ∋ₛ x} → {∋ₘx : μ ∋ₘ x ↪ E}
         → StepC Σ (get {Σ} {Γ} x ∋x ∥ μ) (ret E ∥ μ)
