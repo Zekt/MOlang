@@ -4,7 +4,7 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Data.List using (List; _∷_; [])
-open import Data.Product using (_×_) renaming (_,_ to ⟨_,_⟩)
+open import Data.Product using (_×_; ∃; ∃-syntax; Σ-syntax) renaming (_,_ to ⟨_,_⟩)
 open import Function using (id)
 --open import Category.Monad.State
 --open import Level
@@ -12,16 +12,17 @@ open import Function using (id)
 module main where
 
 infix  4 _⁏_⊢_
+infix  5 _⊗_↪_
 infix  4 _∋_
 infix  4 _∋ₛ_
+infix  4 _∋ₘ_↪_
 infix  5 _,_
-infix  5 ƛ_⇒_
-infix  5 μ_⇒_
 infixr 7 _⇒_
 infixl 7 _·_
 infix  8 `suc_
 infix  9 `_
 infix  9 #_
+infix  4 _∥_
 --infix  9 _[_:=_]
 
 Id : Set
@@ -57,7 +58,7 @@ data _∋ₛ_ : Store → Id → Set where
 
 mutual
   data _⁏_⊢_ : Store → Context → Type → Set where
-    ` : ∀ {Σ Γ A}
+    `_ : ∀ {Σ Γ A}
        → Γ ∋ A
        ------------
        → Σ ⁏ Γ ⊢ A
@@ -76,20 +77,20 @@ mutual
           --------------
           → Σ ⁏ Γ ⊢ `ℕ
     -- ℕ-I₂
-    `suc : ∀ {Σ Γ}
-         → Σ ⁏ Γ ⊢ `ℕ
-         ---------------
-         → Σ ⁏ Γ ⊢ `ℕ
+    `suc_ : ∀ {Σ Γ}
+          → Σ ⁏ Γ ⊢ `ℕ
+          ---------------
+          → Σ ⁏ Γ ⊢ `ℕ
     -- ℕ-E
     case : ∀ {Σ Γ A}
          → Σ ⁏ Γ ⊢ `ℕ   → Σ ⁏ Γ ⊢ A   → Σ ⁏ Γ , `ℕ ⊢ A
          ----------------------------------------------
          → Σ ⁏ Γ ⊢ A
 
-    μ : ∀ {Σ Γ A}
-      → Σ ⁏ Γ , A ⊢ A
-      -----------------
-      → Σ ⁏ Γ ⊢ A
+    μ_ : ∀ {Σ Γ A}
+       → Σ ⁏ Γ , A ⊢ A
+       -----------------
+       → Σ ⁏ Γ ⊢ A
 
     cmd : ∀ {Σ Γ}
         → Σ ⁏ Γ ⊩ ok
@@ -242,7 +243,6 @@ data Value (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊢ A → Set where
   V-cmd  : ∀ {Γ m} → Value Σ (cmd {Σ} {Γ} m)
 
 infix 2 _—→_
-infix 2 _—̀→_
 
 data Step : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
   ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ⁏ Γ ⊢ A ⇒ B} {M : Σ ⁏ Γ ⊢ A}
@@ -289,27 +289,75 @@ data Map : Set where
   ∅     : Map
   _⊗_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ⁏ Γ ⊢ A → Map
 
+data _∋ₘ_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ⁏ Γ ⊢ A → Set where
+  Z : ∀ {μ x Σ Γ A} {M : Σ ⁏ Γ ⊢ A}
+    → μ ⊗ x ↪ M ∋ₘ x ↪ M
+  S : ∀ {μ x y Σ Γ A Ω Δ B} {M : Σ ⁏ Γ ⊢ A} {N : Ω ⁏ Δ ⊢ B}
+    → μ ∋ₘ x ↪ M
+    → μ ⊗ y ↪ N ∋ₘ x ↪ M
+
+--lookupₘ : ∀ {Σ Γ A} → Map → Id → Σ ⁏ Γ ⊢ A
+--lookupₘ (m ⊗ x ↪ M) y with x ≟ y
+--...                      | yes _ = {!M!}
+--...                      | no  _ = lookupₘ m y
+--lookupₘ ∅ _ = ⊥-elim impossible
+--                where postulate impossible : ⊥
+
+data _⦂_ : Map → Store → Set where
+  dom⊇ : ∀ {μ Σ}
+        → (∀ {a Γ A} → Σ ∋ₛ a → Σ[ V ∈ Σ ⁏ Γ ⊢ A ] (μ ∋ₘ a ↪ V × Value Σ V))
+        → μ ⦂ Σ
+
 data State : Set where
   _∥_ : ∀ {Σ Γ a} → Σ ⁏ Γ ⊩ a → Map → State
+
+data Ok (Σ : Store) : State → Set where
+  ok : ∀ {Γ μ} → (C : Σ ⁏ Γ ⊩ ok) → μ ⦂ Σ
+     → Ok Σ (C ∥ μ)
 
 data Final (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊩ A → Map → Set where
   F-ret : ∀ {Γ V μ} → Value Σ {Γ} V → Final Σ (ret V) μ
 
-data StepC : State → State → Set where
-  S-ret  : ∀ {Σ Γ M M' μ}
+data StepC : Store → State → State → Set where
+  ξ-ret  : ∀ {Σ Γ M M' μ}
          → Step {Σ} {Γ} M M'
          -------------
-         → StepC (ret M ∥ μ) (ret M' ∥ μ)
-  S-bnd  : ∀ {Σ Γ M M' C μ}
+         → StepC Σ (ret M ∥ μ) (ret M' ∥ μ)
+  ξ-bnd  : ∀ {Σ Γ M M' C μ}
          → Step {Σ} {Γ} M M'
-         → StepC (bnd M C ∥ μ) (bnd M' C ∥ μ)
-  S-bndret : ∀ {Σ Γ V C μ}
+         → StepC Σ (bnd M C ∥ μ) (bnd M' C ∥ μ)
+  β-bndret : ∀ {Σ Γ V C μ}
            → Value Σ {Γ} V
-           → StepC (bnd (cmd (ret V)) C ∥ μ) ((C [ V ]c) ∥ μ)
-  --TODO
-  S-bndcmd : ∀ {Σ Γ m m' μ μ' n}
-           → StepC ( _∥_ {Σ} {Γ} m μ) (m' ∥ μ')
-           → StepC (bnd (cmd m) n ∥ μ) (bnd (cmd m') n ∥ μ')
+           → StepC Σ (bnd (cmd (ret V)) C ∥ μ) ((C [ V ]c) ∥ μ)
+  --??
+  ξ-bndcmd : ∀ {Σ Γ μ μ' n} → (m m' : Σ ⁏ Γ ⊩ ok)
+           → StepC Σ (m ∥ μ) (m' ∥ μ')
+           → StepC Σ (bnd (cmd m) n ∥ μ) (bnd (cmd m') n ∥ μ')
+  β-get : ∀ {Σ Γ μ x} {E : Σ ⁏ Γ ⊢ `ℕ}
+        → {∋x : Σ ∋ₛ x} → {∋ₘx : μ ∋ₘ x ↪ E}
+        → StepC Σ (get {Σ} {Γ} x ∋x ∥ μ) (ret E ∥ μ)
+
+  ξ-set : ∀ {Σ Γ x μ} {E E' : Σ ⁏ Γ ⊢ `ℕ} → {∋x : Σ ∋ₛ x}
+        → Step E E'
+        → StepC Σ (set x ∋x E ∥ μ) (set x ∋x E' ∥ μ)
+
+  β-setret : ∀ {Σ Γ x μ} {E : Σ ⁏ Γ ⊢ `ℕ} → {∋x : Σ ∋ₛ x}
+           → Value Σ E
+           → StepC Σ (set x ∋x E ∥ μ) (ret E ∥ μ)
+
+  ξ-dcl₁ : ∀ {Σ Γ x μ C} {E E' : Σ ⁏ Γ ⊢ `ℕ}
+         → Step E E'
+         → StepC Σ (dcl x E C ∥ μ) (dcl x E' C ∥ μ)
+
+  ξ-dcl₂ : ∀ {Σ Γ x μ μ' C C'} {E E' : Σ ⁏ Γ ⊢ `ℕ}
+         → {∋x : Σ ∋ₛ x} → {∋ₘx : μ ∋ₘ x ↪ E} → {∋ₘx' : μ' ∋ₘ x ↪ E'}
+         → Value Σ E
+         → StepC Σ (C ∥ μ) (C' ∥ μ')
+         → StepC Σ (dcl x E C ∥ μ) (dcl x E' C' ∥ μ')
+
+  β-dclret : ∀ {Σ Γ x μ} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : (Σ , x) ⁏ Γ ⊢ `ℕ}
+           → Value Σ E → Value (Σ , x) E'
+           → StepC Σ (dcl x E (ret E') ∥ μ) (ret E' ∥ μ)
 
 --data _∥_—↦_∥_ : State → Store → State → Set where
 --  S-ret : ∀ {M M' μ}
