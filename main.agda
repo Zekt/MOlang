@@ -4,13 +4,15 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Data.List using (List; _∷_; [])
-open import Data.Product using (_×_; ∃; ∃-syntax; Σ-syntax) renaming (_,_ to ⟨_,_⟩)
-open import Function using (id)
+open import Data.Product using (_×_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Function using (id; _$_)
 --open import Category.Monad.State
 --open import Level
 
 module main where
 
+infix 2 _—→_
+infix 2 _⊢→_
 infix  4 _⁏_⊢_
 infix  5 _⊗_↪_
 infix  4 _∋_
@@ -126,6 +128,7 @@ count {∅}     _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
 #_ : ∀ {Σ Γ} → (n : ℕ) → Σ ⁏ Γ ⊢ lookup Γ n
+
 # n = ` (count n)
 
 ext : ∀ {Γ Δ}
@@ -242,7 +245,6 @@ data Value (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊢ A → Set where
   V-suc  : ∀ {Γ} {V : Σ ⁏ Γ ⊢ `ℕ} → Value Σ V → Value Σ (`suc V)
   V-cmd  : ∀ {Γ m} → Value Σ (cmd {Σ} {Γ} m)
 
-infix 2 _—→_
 
 data Step : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
   ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ⁏ Γ ⊢ A ⇒ B} {M : Σ ⁏ Γ ⊢ A}
@@ -305,20 +307,20 @@ data _∋ₘ_↪_ : ∀ {Σ Γ A} → Map → Id → Σ ⁏ Γ ⊢ A → Set whe
 
 data _⦂_ : Map → Store → Set where
   dom⊇ : ∀ {μ Σ}
-        → (∀ {a Γ} → Σ ∋ₛ a → Σ[ V ∈ ∅ ⁏ Γ ⊢ `ℕ ] (μ ∋ₘ a ↪ V × Value ∅ V))
+        → (∀ {a} → Σ ∋ₛ a → Σ[ V ∈ ∅ ⁏ ∅ ⊢ `ℕ ] (μ ∋ₘ a ↪ V × Value ∅ V))
         → μ ⦂ Σ
 
-data State : Set where
-  _∥_ : ∀ {Σ Γ a} → Σ ⁏ Γ ⊩ a → Map → State
+data State (Γ : Context) (a : CType) : Set where
+  _∥_ : ∀ {Σ} → Σ ⁏ Γ ⊩ a → Map → State Γ a
 
-data Ok (Σ : Store) : State → Set where
+data Ok (Σ : Store) : ∀ {Γ a} → State Γ a → Set where
   ok : ∀ {Γ μ} → (C : Σ ⁏ Γ ⊩ ok) → μ ⦂ Σ
      → Ok Σ (C ∥ μ)
 
-data Final (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊩ A → Map → Set where
-  F-ret : ∀ {Γ V μ} → Value Σ {Γ} V → Final Σ (ret V) μ
+data Final (Σ : Store) : ∀ {Γ a} → State Γ a → Set where
+  F-ret : ∀ {Γ V μ} → Value Σ {Γ} V → Final Σ (ret V ∥ μ)
 
-data StepC : Store → State → State → Set where
+data StepC : ∀ {Γ a} → (Σ : Store) → State Γ a → State Γ a → Set where
   ξ-ret  : ∀ {Σ Γ M M' μ}
          → Step {Σ} {Γ} M M'
          → StepC Σ (ret M ∥ μ) (ret M' ∥ μ)
@@ -331,13 +333,13 @@ data StepC : Store → State → State → Set where
            → Value Σ {Γ} V
            → StepC Σ (bnd (cmd (ret V)) C ∥ μ) ((C [ V ]c) ∥ μ)
   --??
-  ξ-bndcmd : ∀ {Σ Γ μ μ' n} → (m m' : Σ ⁏ Γ ⊩ ok)
+  ξ-bndcmd : ∀ {Σ Γ μ μ' n} → {m m' : Σ ⁏ Γ ⊩ ok}
            → StepC Σ (m ∥ μ) (m' ∥ μ')
            → StepC Σ (bnd (cmd m) n ∥ μ) (bnd (cmd m') n ∥ μ')
 
   β-get : ∀ {Σ Γ μ x} {E : Σ ⁏ Γ ⊢ `ℕ}
         → {∋x : Σ ∋ₛ x} → {∋ₘx : μ ∋ₘ x ↪ E}
-        → StepC Σ (get {Σ} {Γ} x ∋x ∥ μ) (ret E ∥ μ)
+        → StepC Σ (get x ∋x ∥ μ) (ret E ∥ μ)
 
   ξ-set : ∀ {Σ Γ x μ} {E E' : Σ ⁏ Γ ⊢ `ℕ} → {∋x : Σ ∋ₛ x}
         → Step E E'
@@ -361,56 +363,87 @@ data StepC : Store → State → State → Set where
            → Value Σ E → Value (Σ , x) E'
            → StepC Σ (dcl x E (ret E') ∥ μ) (ret E' ∥ μ)
 
+_⊢[_]→_ : ∀ {Γ a} → State Γ a → Store → State Γ a → Set
+a ⊢[ x ]→ b = StepC x a b
+
+
+
 --data _∥_—↦_∥_ : State → Store → State → Set where
 --  S-ret : ∀ {M M' μ}
 --        → M —→ M'
 --        ------------
---        → 
+--        →
 
---infix  2 _—↠_
---infix  1 begin_
---infixr 2 _—→⟨_⟩_
---infix  3 _∎
---
---data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
---
---  _∎ : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
---     ------
---     → M —↠ M
---
---  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
---          → L —→ M
---          → M —↠ N
---          ------
---          → L —↠ N
---
---begin_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
---  → M —↠ N
---  ------
---  → M —↠ N
---begin M—↠N = M—↠N
+infix  2 _—↠_
+infix  2 _⊢↠_
+infix  1 begin_
+infixr 2 _—→⟨_⟩_
+infix  3 _∎
 
---data Progress {A} (M : ∅ ⊢ A) : Set where
---  done : Value M → Progress M
---  step : ∀ {N : ∅ ⊢ A} → M —→ N → Progress M
---
---progress : ∀ {A} → (M : ∅ ⊢ A) → Progress M
---progress (ƛ N) = done V-ƛ
---progress (L · M) with progress L
---...    | step L—→L′                     =  step (ξ-·₁ L—→L′)
---...    | done V-ƛ with progress M
---...        | step M—→M′                 =  step (ξ-·₂ V-ƛ M—→M′)
---...        | done VM                    =  step (β-ƛ VM)
---progress (`zero)                        =  done V-zero
---progress (`suc M) with progress M
---...    | step M—→M′                     =  step (ξ-suc M—→M′)
---...    | done VM                        =  done (V-suc VM)
---progress (case L M N) with progress L
---...    | step L—→L′                     =  step (ξ-case L—→L′)
---...    | done V-zero                    =  step (β-zero)
---...    | done (V-suc VL)                =  step (β-suc VL)
---progress (μ N)                          =  step (β-μ)
---
+data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
+
+  _∎ : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
+     ------
+     → M —↠ M
+
+  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
+          → L —→ M
+          → M —↠ N
+          ------
+          → L —↠ N
+
+begin_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
+  → M —↠ N
+  ------
+  → M —↠ N
+begin M—↠N = M—↠N
+
+data Progress {Σ A} (M : Σ ⁏ ∅ ⊢ A) : Set where
+  done : Value Σ M → Progress M
+  step : {N : Σ ⁏ ∅ ⊢ A} → M —→ N → Progress M
+
+data Progress' {Σ} (C : Σ ⁏ ∅ ⊩ ok) (μ : Map) : Set where
+  done : Final Σ (C ∥ μ) → Progress' C μ
+  step : {μ' : Map} → {C' : Σ ⁏ ∅ ⊩ ok}
+       → (C ∥ μ) ⊢[ Σ ]→ (C' ∥ μ')
+       → Progress' C μ
+
+progress : ∀ {Σ A} → (M : Σ ⁏ ∅ ⊢ A) → Progress M
+progress (ƛ N) = done V-ƛ
+progress (L · M) with progress L
+...    | step L—→L′                     = step (ξ-·₁ L—→L′)
+...    | done V-ƛ with progress M
+...        | step M—→M′                 = step (ξ-·₂ V-ƛ M—→M′)
+...        | done VM                    = step (β-ƛ VM)
+progress (`zero)                        = done V-zero
+progress (`suc M) with progress M
+...    | step M—→M′                     = step (ξ-suc M—→M′)
+...    | done VM                        = done (V-suc VM)
+progress (case L M N) with progress L
+...    | step L—→L′                     = step (ξ-case L—→L′)
+...    | done V-zero                    = step (β-zero)
+...    | done (V-suc VL)                = step (β-suc VL)
+progress (μ N)                          = step (β-μ)
+progress (cmd C)                        = done V-cmd
+
+progress' : ∀ {Σ μ} → (C : Σ ⁏ ∅ ⊩ ok) → μ ⦂ Σ → Progress' C μ
+progress' (ret E) _ with progress E
+...                    | done VE = done (F-ret VE)
+...                    | step E—→N = step (ξ-ret E—→N)
+progress' (bnd E C) μ⦂Σ with progress E
+progress' (bnd E C) μ⦂Σ | step E—→N = step (ξ-bnd E—→N)
+progress' (bnd (cmd C₁) C₂) μ⦂Σ | done VE with progress' C₁ μ⦂Σ
+progress' (bnd (cmd C₁) C₂) μ⦂Σ | done VE | step C₁⊢→C' = step (ξ-bndcmd C₁⊢→C')
+progress' (bnd (cmd (ret E₁)) C₂) μ⦂Σ | done VE | done FC₁ with progress E₁
+progress' (bnd (cmd (ret E₁)) C₂) μ⦂Σ | done VE | done FC₁ | step E₁—→N = step (ξ-bndcmd (ξ-ret E₁—→N))
+progress' (bnd (cmd (ret E₁)) C₂) μ⦂Σ | done VE | done FC₁ | done VE₁ = step (β-bndret VE₁)
+progress' (get x ∋x) (dom⊇ prf) with prf ∋x
+...                             | res with proj₁ res | proj₂ res
+...                                   | V | t2 with proj₁ t2 | proj₂ t2
+...                                             | ∋ₘx | VV = step (β-get {E = {!!}} {∋x = ∋x} {∋ₘx = {!!}})
+progress' (set x ∋x E) (dom⊇ _) = {!!}
+progress' (dcl x E C) (dom⊇ _) = {!!}
+
 --data Gas : Set where
 --  gas : ℕ → Gas
 --
@@ -443,7 +476,7 @@ data StepC : Store → State → State → Set where
 --
 --  data Cmd : Set where
 --    ret_     : Term → Cmd
---    bnd_←_↷_  : Id → Term → Cmd → Cmd
+--    bnd_←_↷_ : Id → Term → Cmd → Cmd
 --    dcl_≔_↷_ : Id → Term → Cmd → Cmd
 --    get_     : Id → Cmd
 --    set      : Id → Term → Cmd
