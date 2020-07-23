@@ -289,9 +289,9 @@ L —→ M = Step L M
 
 data Map : Store → Set where
   ∅     : Map ∅
-  _⊗_↪_ : ∀ {Σ Γ A} → Map Σ → (x : Id) → {E : (Σ , x) ⁏ Γ ⊢ A} → Value (Σ , x) {Γ} {A} E → Map (Σ , x)
+  _⊗_↪_ : ∀ {Σ Γ} → Map Σ → (x : Id) → {E : (Σ , x) ⁏ Γ ⊢ `ℕ} → Value (Σ , x) {Γ} E → Map (Σ , x)
 
-data _∋ₘ_↪_ : ∀ {Σ Γ A} → Map Σ → (x : Id) → {E : Σ ⁏ Γ ⊢ A} → Value Σ {Γ} {A} E → Set where
+data _∋ₘ_↪_ : ∀ {Σ Γ} → Map Σ → (x : Id) → {E : Σ ⁏ Γ ⊢ `ℕ} → Value Σ {Γ} E → Set where
 --  Z : ∀ {x Σ Γ A} {μ : Map Σ} {E : (Σ , x) ⁏ Γ ⊢ A} {VE : Value (Σ , x) {Γ} {A} E}
 --    → μ ⊗ x ↪ VE ∋ₘ x ↪ VE
 --  S : ∀ {x y Σ Γ A B} {μ : Map Σ} {M : Σ ⁏ Γ ⊢ A} {N : (Σ , y) ⁏ Γ ⊢ B}
@@ -319,20 +319,21 @@ extᵥ Σ⊆Ω V-zero = V-zero
 extᵥ Σ⊆Ω (V-suc VE) = V-suc (extᵥ Σ⊆Ω VE)
 extᵥ Σ⊆Ω V-cmd = V-cmd
 
-shrink : ∀ {Σ Γ x} → (E : (Σ , x) ⁏ Γ ⊢ `ℕ) → Value (Σ , x) E → Σ ⁏ Γ ⊢ `ℕ
-shrink .`zero V-zero = `zero
-shrink (`suc e) (V-suc VE) = `suc shrink e VE
+shrink : ∀ {Σ Γ Ω} → Σ ⊆ Ω → (E : Ω ⁏ Γ ⊢ `ℕ) → Value Ω E → Σ ⁏ Γ ⊢ `ℕ
+shrink Σ⊆Ω .`zero V-zero = `zero
+shrink Σ⊆Ω (`suc e) (V-suc VE) = `suc shrink Σ⊆Ω e VE
 
 force : ∀ {Σ x y} → Σ , y ∋ₛ x → ¬ x ≡ y → Σ ∋ₛ x
 force Z np       = ⊥-elim (np refl)
 force (S ∋ₛx) np = ∋ₛx
 
 lookupₘ : ∀ {Σ} → Map Σ → (x : Id) → (∋x : Σ ∋ₛ x)
-         → ∃[ Ω ] ∃[ A ] ∃[ Γ ] (∃[ E ] Value Ω {Γ} {A} E)
+         → ∃[ Γ ] (∃[ E ] Value Σ {Γ} {`ℕ} E)
 
-lookupₘ ( _⊗_↪_ {Σ} {Γ} {A} m y {E} VE) x ∋x with x ≟ y
-... | yes _ = ⟨ _ , ⟨ _ ,  ⟨ _ , ⟨ E , VE ⟩ ⟩ ⟩ ⟩
-... | no np = lookupₘ m x (force ∋x np)
+lookupₘ ( _⊗_↪_ {Σ} {Γ} m y {E} VE) x ∋x with x ≟ y
+... | yes _ = ⟨ _ ,  ⟨ E , VE ⟩ ⟩
+... | no np with lookupₘ m x (force ∋x np)
+... | ⟨ Γ' , ⟨ E' , VE' ⟩ ⟩ = ⟨ Γ' , ⟨ rename S id E' , extᵥ S VE' ⟩ ⟩
 
 data State (Γ : Context) (a : CType) : Store → Set where
   _⟪_⟫_ : ∀ {Σ Ω} → Σ ⁏ Γ ⊩ a → Σ ⊆ Ω → Map Ω → State Γ a Σ
@@ -384,7 +385,7 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Γ a Σ → State Γ a Σ →
 
   β-dclret : ∀ {Σ Ω Γ x} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : (Σ , x) ⁏ Γ ⊢ `ℕ}
            → {VE : Value Σ E} → {VE' : Value (Σ , x) E'}
-           → StepC Σ (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ μ) (ret (shrink E' VE') ⟪ Σ⊆Ω ⟫ μ)
+           → StepC Σ (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ μ) (ret (shrink S E' VE') ⟪ Σ⊆Ω ⟫ μ)
 
 --a ⊢[ x ]→ b = StepC x a b
 
@@ -423,10 +424,10 @@ data Progress {Σ A} (M : Σ ⁏ ∅ ⊢ A) : Set where
   done : Value Σ M → Progress M
   step : {N : Σ ⁏ ∅ ⊢ A} → M —→ N → Progress M
 
-data Progress' : ∀ {Γ a Σ} → (State Γ a Σ) → Set where
-  done : ∀ {Σ Ω Γ} {C : Σ ⁏ Γ ⊩ ok} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
+data Progress' : ∀ {a Σ} → (State ∅ a Σ) → Set where
+  done : ∀ {Σ Ω} {C : Σ ⁏ ∅ ⊩ ok} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
        → Final Σ (C ⟪ Σ⊆Ω ⟫ μ) → Progress' (C ⟪ Σ⊆Ω ⟫ μ)
-  step : ∀ {Σ Ω Ω' Γ} {C C' : Σ ⁏ Γ ⊩ ok} {μ : Map Ω} {μ' : Map Ω'} {Σ⊆Ω : Σ ⊆ Ω} {Σ⊆Ω' : Σ ⊆ Ω'}
+  step : ∀ {Σ Ω Ω'} {C C' : Σ ⁏ ∅ ⊩ ok} {μ : Map Ω} {μ' : Map Ω'} {Σ⊆Ω : Σ ⊆ Ω} {Σ⊆Ω' : Σ ⊆ Ω'}
        → StepC Σ (C ⟪ Σ⊆Ω ⟫ μ) (C' ⟪ Σ⊆Ω' ⟫ μ')
        → Progress' (C ⟪ Σ⊆Ω ⟫ μ)
 
@@ -463,11 +464,7 @@ progress' (bnd (cmd (ret E₁)) C₂ ⟪ Σ⊆Ω ⟫ m) | done VE | done FC₁ |
 progress' (bnd (cmd (ret E₁)) C₂ ⟪ Σ⊆Ω ⟫ m) | done VE | done FC₁ | done VE₁ = step (β-bndret VE₁)
 
 progress' (get x ∋x ⟪ Σ⊆Ω ⟫ m) with lookupₘ m x (Σ⊆Ω ∋x)
-... | p1 with proj₁ p1 | proj₂ p1
-... | p11 | p2 with proj₂ p2
-... | p3 with proj₂ p3
-... | p4 with proj₁ p4 | proj₂ p4
-... | p41 | p5 = step (β-get {VE = {!!}})
+... | ⟨ Γ , ⟨ E , VE ⟩ ⟩ = step (β-get {μ = m} {E = {!!}} {VE = {!!}})
 --progress' (set a x x₁ ⟪ Σ⊆Ω ⟫ m) = {!!}
 --progress' (dcl a x E ⟪ Σ⊆Ω ⟫ m) = {!!}
 --progress' (ret E) _ with progress E
