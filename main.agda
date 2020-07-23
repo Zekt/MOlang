@@ -477,8 +477,15 @@ progress' (bnd (cmd (ret E₁)) C₂ ⟪ Σ⊆Ω ⟫ m) | done VE | done FC₁ |
 
 progress' (get x ∋x ⟪ Σ⊆Ω ⟫ m) with lookupₘ m x (Σ⊆Ω ∋x)
 ... | ⟨ E  , ⟨ VE , ∋ₘVE ⟩ ⟩ = step (β-get {μ = m} {E = E} {VE = VE} {∋ₘx = ∋ₘVE})
---progress' (set a x x₁ ⟪ Σ⊆Ω ⟫ m) = {!!}
---progress' (dcl a x E ⟪ Σ⊆Ω ⟫ m) = {!!}
+progress' (set x ∋x E ⟪ Σ⊆Ω ⟫ m) with progress E
+...                                 | step E—→N = step (ξ-set E—→N)
+...                                 | done VE = step (β-setret VE)
+progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) with progress E
+...                                 | step E—→N = step (ξ-dcl₁ E—→N)
+...                                 | done VE with progress' (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ (extᵥ (S ∘ Σ⊆Ω) VE))
+...                                              | step C⊢→C' = step (ξ-dcl₂ {!!})
+...                                              | done FC    = {!!}
+
 --progress' (ret E) _ with progress E
 --...                    | done VE = done (F-ret VE)
 --...                    | step E—→N = step (ξ-ret E—→N)
