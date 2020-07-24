@@ -355,7 +355,8 @@ data State (Γ : Context) (a : CType) : Store → Set where
 --     → Ok Σ (C ⟪ id ⟫ μ)
 
 data Final : ∀ {Σ Γ a} → Store → State Γ a Σ → Set where
-  F-ret : ∀ {Σ Ω Γ} {V : Σ ⁏ Γ ⊢ `ℕ} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} → Value Σ V → Final Σ (ret V ⟪ Σ⊆Ω ⟫ μ)
+  F-ret : ∀ {Σ Ω Γ} {V : Σ ⁏ Γ ⊢ `ℕ} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
+        → Value Σ V → Final Σ (ret V ⟪ Σ⊆Ω ⟫ μ)
 
 data StepC : ∀ {Γ a} → (Σ : Store) → State Γ a Σ → State Γ a Σ → Set where
   ξ-ret  : ∀ {Σ Ω Γ M M'} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
@@ -390,10 +391,12 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Γ a Σ → State Γ a Σ →
          → Step E E'
          → StepC Σ (dcl x E C ⟪ Σ⊆Ω ⟫ μ) (dcl x E' C ⟪ Σ⊆Ω ⟫ μ)
 
-  ξ-dcl₂ : ∀ {Σ Ω Ω' x C C'} {μ : Map Ω} {μ' : Map Ω'} {Σ⊆Ω : Σ ⊆ Ω} {Σ⊆Ω' : Σ ⊆ Ω'}
+  ξ-dcl₂ : ∀ {Σ Ω Ω' x C C'} {μ : Map Ω} {μ' : Map Ω'} {Σ⊆Ω : Σ ⊆ Ω} {Σx⊆Ω' : (Σ , x) ⊆ Ω'}
              {E E' : Σ ⁏ ∅ ⊢ `ℕ} {VE : Value Σ E} {VE' : Value Σ E'}
-         → StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ μ ⊗ x ↪ extᵥ (S ∘ Σ⊆Ω) VE) (C' ⟪ ext' Σ⊆Ω' ⟫ μ' ⊗ x ↪ extᵥ (S ∘ Σ⊆Ω') VE')
-         → StepC Σ       (dcl x E C ⟪ Σ⊆Ω ⟫ μ)  (dcl x E' C' ⟪ Σ⊆Ω' ⟫ μ')
+             --{∋ₘVE : μ ∋ₘ x ↪ extᵥ Σ⊆Ω VE}
+             {∋x : Ω' ∋ₛ x} {∋ₘVE' : μ' ∋ₘ x ↪ extᵥ (Σx⊆Ω' ∘ S) VE'}
+         → StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ μ ⊗ x ↪ extᵥ (S ∘ Σ⊆Ω) VE) (C' ⟪ Σx⊆Ω' ⟫ μ')
+         → StepC Σ       (dcl x E C ⟪ Σ⊆Ω ⟫ μ)  (dcl x E' C' ⟪ (Σx⊆Ω' ∘ S)  ⟫ μ')
 
   β-dclret : ∀ {Σ Ω Γ x} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : (Σ , x) ⁏ Γ ⊢ `ℕ}
            → {VE : Value Σ E} → {VE' : Value (Σ , x) E'}
@@ -461,6 +464,34 @@ progress (case L M N) with progress L
 progress (μ N)                          = step (β-μ)
 progress (cmd C)                        = done V-cmd
 
+--progress'-bnd : ∀ {Σ Ω Ω' x} {Σ⊆Ω : Σ ⊆ Ω} {Σx⊆Ω' : (Σ , x) ⊆ Ω'} {C C' : (Σ , x) ⁏ ∅ ⊩ ok}
+--                  {m : Map Ω} {m' : Map Ω'} {E : (Ω , x) ⁏ ∅ ⊢ `ℕ} {VE : Value (Ω , x) E}
+--              → StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ VE) (C' ⟪ Σx⊆Ω' ⟫ m')
+--              → Σ[ m'' ∈ Map Ω' ] Σ[ E' ∈ (Ω' , x) ⁏ ∅ ⊢ `ℕ ] Σ[ VE' ∈ Value (Ω' , x) E' ]
+--                StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ VE) (C' ⟪ S ∘ Σx⊆Ω' ⟫ m'' ⊗ x ↪ VE')
+
+--progress'-bnd C⊢→C' = {!C⊢→C'!}
+
+--progress'-bnd : ∀ {Σ Ω x} {Σ⊆Ω : Σ ⊆ Ω} {C : (Σ , x) ⁏ ∅ ⊩ ok} {m : Map Ω} {E : (Ω , x) ⁏ ∅ ⊢ `ℕ} {VE : Value (Ω , x) E}
+--              → Progress' (C ⟪ ext' Σ⊆Ω ⟫ (m ⊗ x ↪ VE))
+--              → Σ[ Ω' ∈ Store ] Σ[ Σ⊆Ω' ∈ Σ ⊆ Ω' ] Σ[ C' ∈ (Σ , x) ⁏ ∅ ⊩ ok ] Σ[ m' ∈ Map Ω' ] Σ[ E' ∈ (Ω' , x) ⁏ ∅ ⊢ `ℕ ] Σ[ VE' ∈ Value (Ω' , x) E' ]
+--                StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ VE) (C' ⟪ ext' Σ⊆Ω' ⟫ m' ⊗ x ↪ VE')
+--progress'-bnd {Σ} {Ω} {x} {Σ⊆Ω} {C} {m} {E} {VE} (done (F-ret VV)) = ⟨ Ω , ⟨ Σ⊆Ω , ⟨ C , ⟨ m , ⟨ E , ⟨ VE , {!!} ⟩ ⟩ ⟩ ⟩ ⟩ ⟩
+--progress'-bnd {Σ} {Ω} {x} {Σ⊆Ω} {C} {m} {E} {VE} (step C→) = {!!}
+--progress'-bnd {Σ} {x} {C} {m} {E} {VE} (done (F-ret VV)) = C ⟪ id ⟫ m ⊗ x ↪ VE
+--progress'-bnd (step {C' = C'} {μ' = ∅} {Σ⊆Ω' = Σ⊆Ω'} C⊢→C') = C' ⟪ Σ⊆Ω' ⟫ ∅
+--progress'-bnd (step {Σ} {C' = C'} {μ' = m' ⊗ x ↪ VE'} {Σ⊆Ω' = Σ⊆Ω'} C⊢→C') = (C' ⟪ Σ⊆Ω' ⟫ m' ⊗ x ↪ VE')
+
+--pbnd : StepC
+
+--progress'' : ∀ {Σ x} → (S : State ∅ ok (Σ , x)) → Progress' S
+--progress'' (ret E ⟪ sub ⟫ m) with progress E
+--... | done VE = done (F-ret VE)
+--progress'' (bnd x C ⟪ sub ⟫ m) = {!!}
+--progress'' (dcl a x C ⟪ sub ⟫ m) = {!!}
+--progress'' (get a x ⟪ sub ⟫ m) = {!!}
+--progress'' (set a x x₁ ⟪ sub ⟫ m) = {!!}
+
 progress' : ∀ {Σ} → (S : State ∅ ok Σ) → Progress' S
 
 progress' (ret E ⟪ Σ⊆Ω ⟫ m) with progress E
@@ -483,8 +514,12 @@ progress' (set x ∋x E ⟪ Σ⊆Ω ⟫ m) with progress E
 progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) with progress E
 ...                                 | step E—→N = step (ξ-dcl₁ E—→N)
 ...                                 | done VE with progress' (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ (extᵥ (S ∘ Σ⊆Ω) VE))
-...                                              | step C⊢→C' = step (ξ-dcl₂ {!!})
-...                                              | done FC    = {!!}
+... | step {μ = μ} {μ' = μ'} {Σ⊆Ωx} {Σx⊆Ω'} C⊢→C' with lookupₘ μ' x (Σx⊆Ω' Z)
+... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ with shrink (Σx⊆Ω' ∘ S) E' VE'
+... | ⟨ E'' , VE'' ⟩ = step (ξ-dcl₂ {E' = E''} {VE' = VE''} {∋x = Σx⊆Ω' Z} {∋ₘVE' = {!!}} C⊢→C')
+--progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₁ → S (Σ⊆Ω x₁)) VE)} {∅} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
+--progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₃ → S (Σ⊆Ω x₃)) VE)} {μ' ⊗ y ↪ VE'} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
+progress' (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ m) | done VE | done (F-ret VE') = step (β-dclret {VE = VE} {VE' = VE'})
 
 --progress' (ret E) _ with progress E
 --...                    | done VE = done (F-ret VE)
