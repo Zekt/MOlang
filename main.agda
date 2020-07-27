@@ -300,6 +300,12 @@ extᵥ Σ⊆Ω V-zero = V-zero
 extᵥ Σ⊆Ω (V-suc VE) = V-suc (extᵥ Σ⊆Ω VE)
 extᵥ Σ⊆Ω V-cmd = V-cmd
 
+shrink : ∀ {Σ Γ Ω} → Σ ⊆ Ω → (E : Ω ⁏ Γ ⊢ `ℕ) → Value Ω E → Σ[ E' ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E'
+shrink Σ⊆Ω .`zero V-zero = ⟨ `zero , V-zero ⟩
+shrink Σ⊆Ω (`suc e) (V-suc VE) with shrink Σ⊆Ω e VE
+... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
+
+
 data _∋ₘ_↪_ : ∀ {Σ} → Map Σ → (x : Id) → {E : Σ ⁏ ∅ ⊢ `ℕ} → Value Σ E → Set where
   Z : ∀ {x Σ} {μ : Map Σ} {E : (Σ , x) ⁏ ∅ ⊢ `ℕ} {VE : Value (Σ , x) E}
     → μ ⊗ x ↪ VE ∋ₘ x ↪ VE
@@ -307,6 +313,12 @@ data _∋ₘ_↪_ : ∀ {Σ} → Map Σ → (x : Id) → {E : Σ ⁏ ∅ ⊢ `�
     → {VM : Value Σ M} {VN : Value (Σ , y) N}
     → μ ∋ₘ x ↪ VM
     → μ ⊗ y ↪ VN ∋ₘ x ↪ extᵥ S VM
+
+∋ₘext : ∀{x Σ Ω} {Σ⊆Ω : Σ ⊆ Ω} {μ : Map Ω} {E : Ω ⁏ ∅ ⊢ `ℕ} {VE : Value Ω E}
+      → μ ∋ₘ x ↪ VE → μ ∋ₘ x ↪ extᵥ Σ⊆Ω (proj₂ (shrink Σ⊆Ω E VE))
+∋ₘext {Σ⊆Ω = Σ⊆Ω} {μ = μ} {E} {VE} μ∋ₘx with shrink Σ⊆Ω E VE
+... | ⟨ E' , VE' ⟩ with extᵥ Σ⊆Ω VE'
+... | VE'' = {!!}
 
 --lookupₘ (m ⊗ x ↪ M) y with x ≟ y
 --...                      | yes _ = {!M!}
@@ -317,11 +329,6 @@ data _∋ₘ_↪_ : ∀ {Σ} → Map Σ → (x : Id) → {E : Σ ⁏ ∅ ⊢ `�
 --data _⦂_ : Map → Store → Set where
 --  dom⊇ : ∀ {μ Σ}
 --        → (∀ {a} → Σ ∋ₛ a → Σ[ V ∈ ∅ ⁏ ∅ ⊢ `ℕ ] (μ ∋ₘ a ↪ V × Value ∅ V))
-
-shrink : ∀ {Σ Γ Ω} → Σ ⊆ Ω → (E : Ω ⁏ Γ ⊢ `ℕ) → Value Ω E → Σ[ E' ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E'
-shrink Σ⊆Ω .`zero V-zero = ⟨ `zero , V-zero ⟩
-shrink Σ⊆Ω (`suc e) (V-suc VE) with shrink Σ⊆Ω e VE
-... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
 
 --shrink' ∀ {Σ Γ Ω} → (μ : Map Ω) → Σ ⊆ Ω → Σ ∋ₛ x → ∃[ VE ] μ
 
@@ -347,8 +354,8 @@ lookupₘ ( _⊗_↪_ {Σ} m y {E} VE) x ∋x with x ≟ y
 --... | ⟨ E , ⟨ VE , ∋ₘVE ⟩ ⟩ with shrink Σ⊆Ω E VE
 --... | ⟨ E' , VE' ⟩ = ⟨ E' , ⟨ VE' , {!!} ⟩ ⟩
 
-data State (Γ : Context) (a : CType) : Store → Set where
-  _⟪_⟫_ : ∀ {Σ Ω} → Σ ⁏ Γ ⊩ a → Σ ⊆ Ω → Map Ω → State Γ a Σ
+data State (Σ : Store) (Γ : Context) (a : CType) : Set where
+  _⟪_⟫_ : ∀ {Ω} → Σ ⁏ Γ ⊩ a → Σ ⊆ Ω → Map Ω → State Σ Γ a
 
 --data Ok (Σ : Store) : ∀ {Γ a} → State Γ a → Set where
 --  ok : ∀ {Γ μ} → (C : Σ ⁏ Γ ⊩ ok) → μ ⦂ Σ
@@ -358,7 +365,7 @@ data Final : ∀ {Σ Γ a} → Store → State Γ a Σ → Set where
   F-ret : ∀ {Σ Ω Γ} {V : Σ ⁏ Γ ⊢ `ℕ} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
         → Value Σ V → Final Σ (ret V ⟪ Σ⊆Ω ⟫ μ)
 
-data StepC : ∀ {Γ a} → (Σ : Store) → State Γ a Σ → State Γ a Σ → Set where
+data StepC : ∀ {Γ a} → (Σ : Store) → State Σ Γ a → State Σ Γ a → Set where
   ξ-ret  : ∀ {Σ Ω Γ M M'} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
          → Step {Σ} {Γ} M M'
          → StepC Σ (ret M ⟪ Σ⊆Ω ⟫ μ) (ret M' ⟪ Σ⊆Ω ⟫ μ)
@@ -439,7 +446,7 @@ data Progress {Σ A} (M : Σ ⁏ ∅ ⊢ A) : Set where
   done : Value Σ M → Progress M
   step : {N : Σ ⁏ ∅ ⊢ A} → M —→ N → Progress M
 
-data Progress' : ∀ {a Σ} → (State ∅ a Σ) → Set where
+data Progress' : ∀ {a Σ} → (State Σ ∅ a) → Set where
   done : ∀ {Σ Ω} {C : Σ ⁏ ∅ ⊩ ok} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
        → Final Σ (C ⟪ Σ⊆Ω ⟫ μ) → Progress' (C ⟪ Σ⊆Ω ⟫ μ)
   step : ∀ {Σ Ω Ω'} {C C' : Σ ⁏ ∅ ⊩ ok} {μ : Map Ω} {μ' : Map Ω'} {Σ⊆Ω : Σ ⊆ Ω} {Σ⊆Ω' : Σ ⊆ Ω'}
@@ -492,7 +499,7 @@ progress (cmd C)                        = done V-cmd
 --progress'' (get a x ⟪ sub ⟫ m) = {!!}
 --progress'' (set a x x₁ ⟪ sub ⟫ m) = {!!}
 
-progress' : ∀ {Σ} → (S : State ∅ ok Σ) → Progress' S
+progress' : ∀ {Σ} → (S : State Σ ∅ ok) → Progress' S
 
 progress' (ret E ⟪ Σ⊆Ω ⟫ m) with progress E
 ...                            | done VE   = done (F-ret VE)
