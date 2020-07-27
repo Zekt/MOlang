@@ -1,4 +1,5 @@
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
+open import Relation.Binary.PropositionalEquality as Eq using (_≡_; _≢_; refl)
+open Eq.≡-Reasoning using (begin_; _≡⟨_⟩_; _≡⟨⟩_; _∎)
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
@@ -11,6 +12,7 @@ open import Function using (id; _$_; _∘_)
 
 module main where
 
+infix 1 _×_
 infix 2 _—→_
 infix 2 _⊢→_
 infix  4 _⁏_⊢_
@@ -289,7 +291,7 @@ L —→ M = Step L M
 
 data Map : Store → Set where
   ∅     : Map ∅
-  _⊗_↪_ : ∀ {Σ} → Map Σ → (x : Id) → {E : (Σ , x) ⁏ ∅ ⊢ `ℕ} → Value (Σ , x) E → Map (Σ , x)
+  _⊗_↪_ : ∀ {Σ} → Map Σ → (x : Id) → Σ[ E ∈ (Σ , x) ⁏ ∅ ⊢ `ℕ ] Value (Σ , x) E → Map (Σ , x)
 
 _⊆_ : Store → Store → Set
 Σ ⊆ Ω = ∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a
@@ -303,25 +305,32 @@ shrink Σ⊆Ω .`zero V-zero = ⟨ `zero , V-zero ⟩
 shrink Σ⊆Ω (`suc e) (V-suc VE) with shrink Σ⊆Ω e VE
 ... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
 
+renameN : ∀ {Σ Ω Γ} → Σ[ E ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E → Σ[ E' ∈ Ω ⁏ Γ ⊢ `ℕ ] Value Ω E'
+renameN ⟨ `zero , V-zero ⟩ = ⟨ `zero , V-zero ⟩
+renameN ⟨ `suc E , V-suc VE ⟩ with renameN ⟨ E , VE ⟩
+... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
+
+eqN : ∀ {Σ Ω Γ} {E : Ω ⁏ Γ ⊢ `ℕ} {VE : Value Ω E}
+    → ⟨ E , VE ⟩ ≡ renameN {Σ} {Ω} {Γ} ⟨ (proj₁ $ renameN {Ω} {Σ} {Γ} ⟨ E , VE ⟩) , (proj₂ $ renameN {Ω} {Σ} {Γ} ⟨ E , VE ⟩) ⟩
+eqN {Σ} {Ω} {Γ} {E} {VE} = begin ⟨ E , VE ⟩ ≡⟨ {!!} ⟩ {!!} ∎
+
 data Same : ∀{Σ Ω Γ} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : Ω ⁏ Γ ⊢ `ℕ} → Value Σ E → Value Ω E' → Set where
   same : ∀ {Σ Γ} {E : Σ ⁏ Γ ⊢ `ℕ} → (VE : Value Σ E) → Same VE VE
   more : ∀ {Σ Ω Γ} {Σ⊆Ω : Σ ⊆ Ω} {E : Σ ⁏ Γ ⊢ `ℕ} → (VE : Value Σ E) → Same VE (extᵥ Σ⊆Ω VE)
   --less : ∀ {Σ Ω Γ} {Σ⊆Ω : Σ ⊆ Ω} {E : Ω ⁏ Γ ⊢ `ℕ} → Same E (proj₁ $ shrink E )
 
+data _∋ₘ_↪_ : ∀ {Σ} → Map Σ → (x : Id) →  Σ[ E ∈ Σ ⁏ ∅ ⊢ `ℕ ] Value Σ E → Set where
+  Z : ∀ {x Σ} {μ : Map Σ} { EVE : Σ[ E ∈ (Σ , x) ⁏ ∅ ⊢ `ℕ ] Value (Σ , x) E}
+    → μ ⊗ x ↪ EVE ∋ₘ x ↪ EVE
+  S : ∀ {x y Σ} {μ : Map Σ} {MVM : Σ[ M ∈ Σ ⁏ ∅ ⊢ `ℕ ] Value Σ M} → {NVN : Σ[ N ∈ (Σ , y) ⁏ ∅ ⊢ `ℕ ] Value (Σ , y) N}
+    → μ ∋ₘ x ↪ MVM
+    → μ ⊗ y ↪ NVN ∋ₘ x ↪ renameN MVM
 
-data _∋ₘ_↪_ : ∀ {Σ} → Map Σ → (x : Id) → {E : Σ ⁏ ∅ ⊢ `ℕ} → Value Σ E → Set where
-  Z : ∀ {x Σ} {μ : Map Σ} {E : (Σ , x) ⁏ ∅ ⊢ `ℕ} {VE : Value (Σ , x) E}
-    → μ ⊗ x ↪ VE ∋ₘ x ↪ VE
-  S : ∀ {x y Σ} {μ : Map Σ} {M : Σ ⁏ ∅ ⊢ `ℕ} {N : (Σ , y) ⁏ ∅ ⊢ `ℕ}
-    → {VM : Value Σ M} {VN : Value (Σ , y) N}
-    → μ ∋ₘ x ↪ VM
-    → μ ⊗ y ↪ VN ∋ₘ x ↪ extᵥ S VM
-
-∋ₘext : ∀{x Σ Ω} {Σ⊆Ω : Σ ⊆ Ω} {μ : Map Ω} {E : Ω ⁏ ∅ ⊢ `ℕ} {VE : Value Ω E}
-      → μ ∋ₘ x ↪ VE → μ ∋ₘ x ↪ extᵥ Σ⊆Ω (proj₂ (shrink Σ⊆Ω E VE))
-∋ₘext {Σ⊆Ω = Σ⊆Ω} {μ = μ} {E} {VE} μ∋ₘx with shrink Σ⊆Ω E VE
-... | ⟨ E' , VE' ⟩ with extᵥ Σ⊆Ω VE'
-... | VE'' = {!!}
+--∋ₘext : ∀{x Σ Ω} {Σ⊆Ω : Σ ⊆ Ω} {μ : Map Ω} {E : Ω ⁏ ∅ ⊢ `ℕ} {VE : Value Ω E}
+--      → μ ∋ₘ x ↪ VE → μ ∋ₘ x ↪ ?
+--∋ₘext {Σ⊆Ω = Σ⊆Ω} {μ = μ} {E} {VE} μ∋ₘx with renameN E VE
+--... | ⟨ E' , VE' ⟩ with extᵥ Σ⊆Ω VE'
+--... | VE'' = {!!}
 
 --lookupₘ (m ⊗ x ↪ M) y with x ≟ y
 --...                      | yes _ = {!M!}
@@ -339,16 +348,17 @@ force : ∀ {Σ x y} → Σ , y ∋ₛ x → ¬ x ≡ y → Σ ∋ₛ x
 force Z np       = ⊥-elim (np refl)
 force (S ∋ₛx) np = ∋ₛx
 
-here : ∀ {x y Σ E} {μ : Map Σ} {VE : Value (Σ , y) E} → x ≡ y → _⊗_↪_ {Σ} μ y {E} VE ∋ₘ x ↪ VE
+here : ∀ {x y Σ} {μ : Map Σ} {EVE : ∃[ E ] Value (Σ , y) E} → x ≡ y → _⊗_↪_ {Σ} μ y EVE ∋ₘ x ↪ EVE
 here refl = Z
 
 lookupₘ : ∀ {Σ} → (μ : Map Σ) → (x : Id) → (∋x : Σ ∋ₛ x)
-        → Σ[ E ∈ Σ ⁏ ∅ ⊢ `ℕ ] Σ[ VE ∈ Value Σ E ] (μ ∋ₘ x ↪ VE)
+        →  Σ[ E ∈ Σ ⁏ ∅ ⊢ `ℕ ] Σ[ VE ∈ Value Σ E ] μ ∋ₘ x ↪ ⟨ E , VE ⟩
 
-lookupₘ ( _⊗_↪_ {Σ} m y {E} VE) x ∋x with x ≟ y
+lookupₘ (_⊗_↪_ {Σ} m y ⟨ E , VE ⟩) x ∋x with x ≟ y
 ... | yes p = ⟨ E , ⟨ VE , here p ⟩ ⟩
 ... | no np with lookupₘ m x (force ∋x np)
-... | ⟨ E' , ⟨ VE' , ∋ₘVE' ⟩ ⟩ = ⟨ rename S id E' , ⟨ extᵥ S VE' , S ∋ₘVE' ⟩ ⟩
+... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ = let ⟨ E'' , VE'' ⟩ = renameN ⟨ E' , VE' ⟩
+                               in  ⟨ E'' , ⟨ VE'' , (S ∋ₘx) ⟩ ⟩
 
 --_ : ∀ → μ ∋ₘ x ↪
 
@@ -386,8 +396,8 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Σ Γ a → State Σ Γ a →
            → StepC Σ (bnd (cmd m) n ⟪ Σ⊆Ω ⟫ μ) (bnd (cmd m') n ⟪ Σ⊆Ω' ⟫ μ')
 
   β-get : ∀ {Σ Ω x} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} {E : Ω ⁏ ∅ ⊢ `ℕ} {VE : Value Ω E}
-        → {∋x : Σ ∋ₛ x} → {∋ₘx : μ ∋ₘ x ↪ VE} --extᵥ Σ⊆Ω VE
-        → StepC Σ (get x ∋x ⟪ Σ⊆Ω ⟫ μ) (ret (proj₁ $ shrink Σ⊆Ω E VE) ⟪ Σ⊆Ω ⟫ μ)
+        → {∋x : Σ ∋ₛ x} → {∋ₘx : μ ∋ₘ x ↪ ⟨ E , VE ⟩} --extᵥ Σ⊆Ω VE
+        → StepC Σ (get x ∋x ⟪ Σ⊆Ω ⟫ μ) (ret (proj₁ $ renameN ⟨ E , VE ⟩) ⟪ Σ⊆Ω ⟫ μ)
 
   ξ-set : ∀ {Σ Ω Γ x} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} {E E' : Σ ⁏ Γ ⊢ `ℕ} → {∋x : Σ ∋ₛ x}
         → Step E E'
@@ -395,7 +405,7 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Σ Γ a → State Σ Γ a →
 
   β-setret : ∀ {Σ Ω x} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} {E : Σ ⁏ ∅ ⊢ `ℕ} → {∋x : Σ ∋ₛ x}
            → (VE : Value Σ E)
-           → StepC Σ (set x ∋x E ⟪ Σ⊆Ω ⟫ μ) (ret E ⟪ S ∘ Σ⊆Ω ⟫ μ ⊗ x ↪ (extᵥ (S ∘ Σ⊆Ω) VE))
+           → StepC Σ (set x ∋x E ⟪ Σ⊆Ω ⟫ μ) (ret E ⟪ S ∘ Σ⊆Ω ⟫ μ ⊗ x ↪ (renameN ⟨ E , VE ⟩))
 
   ξ-dcl₁ : ∀ {Σ Ω Γ x C} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} {E E' : Σ ⁏ Γ ⊢ `ℕ}
          → Step E E'
@@ -404,13 +414,13 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Σ Γ a → State Σ Γ a →
   ξ-dcl₂ : ∀ {Σ Ω Ω' x C C'} {μ : Map Ω} {μ' : Map Ω'} {Σ⊆Ω : Σ ⊆ Ω} {Σx⊆Ω' : (Σ , x) ⊆ Ω'}
              {E E' : Σ ⁏ ∅ ⊢ `ℕ} {VE : Value Σ E} {VE' : Value Σ E'}
              --{∋ₘVE : μ ∋ₘ x ↪ extᵥ Σ⊆Ω VE}
-             {∋x : Ω' ∋ₛ x} {∋ₘVE' : μ' ∋ₘ x ↪ extᵥ (Σx⊆Ω' ∘ S) VE'}
-         → StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ μ ⊗ x ↪ extᵥ (S ∘ Σ⊆Ω) VE) (C' ⟪ Σx⊆Ω' ⟫ μ')
+             {∋x : Ω' ∋ₛ x} {∋ₘVE' : μ' ∋ₘ x ↪ renameN ⟨ E' , VE' ⟩}
+         → StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ μ ⊗ x ↪ renameN ⟨ E , VE ⟩) (C' ⟪ Σx⊆Ω' ⟫ μ')
          → StepC Σ       (dcl x E C ⟪ Σ⊆Ω ⟫ μ)  (dcl x E' C' ⟪ (Σx⊆Ω' ∘ S)  ⟫ μ')
 
   β-dclret : ∀ {Σ Ω Γ x} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : (Σ , x) ⁏ Γ ⊢ `ℕ}
            → {VE : Value Σ E} → {VE' : Value (Σ , x) E'}
-           → StepC Σ (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ μ) (ret (proj₁ $ shrink S E' VE') ⟪ Σ⊆Ω ⟫ μ)
+           → StepC Σ (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ μ) (ret (proj₁ $ renameN ⟨ E' , VE' ⟩) ⟪ Σ⊆Ω ⟫ μ)
 
 --a ⊢[ x ]→ b = StepC x a b
 
@@ -421,29 +431,29 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Σ Γ a → State Σ Γ a →
 --        ------------
 --        →
 
-infix  2 _—↠_
-infix  2 _⊢↠_
-infix  1 begin_
-infixr 2 _—→⟨_⟩_
-infix  3 _∎
+--infix  2 _—↠_
+--infix  2 _⊢↠_
+--infix  1 begin_
+--infixr 2 _—→⟨_⟩_
+--infix  3 _∎
 
-data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
-
-  _∎ : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
-     ------
-     → M —↠ M
-
-  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
-          → L —→ M
-          → M —↠ N
-          ------
-          → L —↠ N
-
-begin_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
-  → M —↠ N
-  ------
-  → M —↠ N
-begin M—↠N = M—↠N
+--data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
+--
+--  _∎ : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
+--     ------
+--     → M —↠ M
+--
+--  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
+--          → L —→ M
+--          → M —↠ N
+--          ------
+--          → L —↠ N
+--
+--begin_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
+--  → M —↠ N
+--  ------
+--  → M —↠ N
+--begin M—↠N = M—↠N
 
 data Progress {Σ A} (M : Σ ⁏ ∅ ⊢ A) : Set where
   done : Value Σ M → Progress M
@@ -523,10 +533,10 @@ progress' (set x ∋x E ⟪ Σ⊆Ω ⟫ m) with progress E
 ...                                 | done VE = step (β-setret VE)
 progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) with progress E
 ...                                 | step E—→N = step (ξ-dcl₁ E—→N)
-...                                 | done VE with progress' (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ (extᵥ (S ∘ Σ⊆Ω) VE))
+...                                 | done VE with progress' (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ renameN ⟨ E , VE ⟩)
 ... | step {μ = μ} {μ' = μ'} {Σ⊆Ωx} {Σx⊆Ω'} C⊢→C' with lookupₘ μ' x (Σx⊆Ω' Z)
-... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ with shrink (Σx⊆Ω' ∘ S) E' VE'
-... | ⟨ E'' , VE'' ⟩ = step (ξ-dcl₂ {E' = E''} {VE' = VE''} {∋x = Σx⊆Ω' Z} {∋ₘVE' = {!!}} C⊢→C')
+... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ = let ⟨ E'' , VE'' ⟩ = renameN ⟨ E' , VE' ⟩
+                               in step (ξ-dcl₂ {E' = E''} {VE' = VE''} {∋x = Σx⊆Ω' Z} {∋ₘVE' = {!!}} C⊢→C')
 --progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₁ → S (Σ⊆Ω x₁)) VE)} {∅} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
 --progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₃ → S (Σ⊆Ω x₃)) VE)} {μ' ⊗ y ↪ VE'} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
 progress' (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ m) | done VE | done (F-ret VE') = step (β-dclret {VE = VE} {VE' = VE'})
