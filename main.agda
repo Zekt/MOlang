@@ -294,16 +294,19 @@ data Map : Store → Set where
 _⊆_ : Store → Store → Set
 Σ ⊆ Ω = ∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a
 
-extᵥ : ∀ {Σ Ω Γ A E} → (Σ⊆Ω : Σ ⊆ Ω) → Value Σ {Γ} {A} E → Value Ω {Γ} {A} (rename Σ⊆Ω id E)
-extᵥ Σ⊆Ω V-ƛ = V-ƛ
+extᵥ : ∀ {Σ Ω Γ} {E : Σ ⁏ Γ ⊢ `ℕ} → (Σ⊆Ω : Σ ⊆ Ω) → Value Σ E → Value Ω (rename Σ⊆Ω id E)
 extᵥ Σ⊆Ω V-zero = V-zero
 extᵥ Σ⊆Ω (V-suc VE) = V-suc (extᵥ Σ⊆Ω VE)
-extᵥ Σ⊆Ω V-cmd = V-cmd
 
 shrink : ∀ {Σ Γ Ω} → Σ ⊆ Ω → (E : Ω ⁏ Γ ⊢ `ℕ) → Value Ω E → Σ[ E' ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E'
 shrink Σ⊆Ω .`zero V-zero = ⟨ `zero , V-zero ⟩
 shrink Σ⊆Ω (`suc e) (V-suc VE) with shrink Σ⊆Ω e VE
 ... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
+
+data Same : ∀{Σ Ω Γ} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : Ω ⁏ Γ ⊢ `ℕ} → Value Σ E → Value Ω E' → Set where
+  same : ∀ {Σ Γ} {E : Σ ⁏ Γ ⊢ `ℕ} → (VE : Value Σ E) → Same VE VE
+  more : ∀ {Σ Ω Γ} {Σ⊆Ω : Σ ⊆ Ω} {E : Σ ⁏ Γ ⊢ `ℕ} → (VE : Value Σ E) → Same VE (extᵥ Σ⊆Ω VE)
+  --less : ∀ {Σ Ω Γ} {Σ⊆Ω : Σ ⊆ Ω} {E : Ω ⁏ Γ ⊢ `ℕ} → Same E (proj₁ $ shrink E )
 
 
 data _∋ₘ_↪_ : ∀ {Σ} → Map Σ → (x : Id) → {E : Σ ⁏ ∅ ⊢ `ℕ} → Value Σ E → Set where
