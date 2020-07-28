@@ -12,9 +12,8 @@ open import Function using (id; _$_; _∘_)
 
 module main where
 
-infix 1 _×_
 infix 2 _—→_
-infix 2 _⊢→_
+--infix 2 _⊢→_
 infix  4 _⁏_⊢_
 infix  5 _⊗_↪_
 infix  4 _∋_
@@ -147,17 +146,6 @@ ext' : ∀ {Σ Ω}
      → (∀ {a b} → Σ , b ∋ₛ a → Ω , b ∋ₛ a)
 ext' ρ Z     = Z
 ext' ρ (S x) = S (ρ x)
-
---ext' : ∀ {Σ Γ A a}
---     → Σ ⁏ Γ ⊢ A → (Σ , a) ⁏ Γ ⊢ A
---ext' (` x) = ` x
---ext' (ƛ N) = ƛ (ext' N)
---ext' (L · M) = (ext' L) · (ext' M)
---ext' `zero = `zero
---ext' (`suc M) = `suc (ext' M)
---ext' (case L M N) = case (ext' L) (ext' M) (ext' N)
---ext' (μ M) = μ (ext' M)
---ext' (cmd C) = cmd {!!}
 
 mutual
   rename : ∀ {Σ Ω Γ Δ}
@@ -311,8 +299,6 @@ renameN ⟨ `zero , V-zero ⟩ = ⟨ `zero , V-zero ⟩
 renameN ⟨ `suc E , V-suc VE ⟩ with renameN ⟨ E , VE ⟩
 ... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
 
---ide₁ : 
-
 ide : ∀ {Σ Ω : Store} {Γ : Context} {EVE : Σ[ E ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E}
     → renameN {Ω} {Σ} {Γ} (renameN {Σ} {Ω} {Γ} EVE) ≡ EVE
 ide {EVE = ⟨ `zero , V-zero ⟩} = refl
@@ -331,35 +317,12 @@ eqN {Σ} {Ω} {Γ} {E} {VE} = let ⟨ E' , VE' ⟩ = renameN {Ω} {Σ} {Γ} ⟨ 
                                ⟨ E'' , VE'' ⟩ = renameN {Σ} {Ω} {Γ} ⟨ E' , VE' ⟩
                            in begin ⟨ E'' , VE'' ⟩ ≡⟨ ide ⟩ ⟨ E , VE ⟩ ∎
 
-data Same : ∀{Σ Ω Γ} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : Ω ⁏ Γ ⊢ `ℕ} → Value Σ E → Value Ω E' → Set where
-  same : ∀ {Σ Γ} {E : Σ ⁏ Γ ⊢ `ℕ} → (VE : Value Σ E) → Same VE VE
-  more : ∀ {Σ Ω Γ} {Σ⊆Ω : Σ ⊆ Ω} {E : Σ ⁏ Γ ⊢ `ℕ} → (VE : Value Σ E) → Same VE (extᵥ Σ⊆Ω VE)
-  --less : ∀ {Σ Ω Γ} {Σ⊆Ω : Σ ⊆ Ω} {E : Ω ⁏ Γ ⊢ `ℕ} → Same E (proj₁ $ shrink E )
-
 data _∋ₘ_↪_ : ∀ {Σ} → Map Σ → (x : Id) →  Σ[ E ∈ Σ ⁏ ∅ ⊢ `ℕ ] Value Σ E → Set where
   Z : ∀ {x Σ} {μ : Map Σ} { EVE : Σ[ E ∈ (Σ , x) ⁏ ∅ ⊢ `ℕ ] Value (Σ , x) E}
     → μ ⊗ x ↪ EVE ∋ₘ x ↪ EVE
   S : ∀ {x y Σ} {μ : Map Σ} {MVM : Σ[ M ∈ Σ ⁏ ∅ ⊢ `ℕ ] Value Σ M} → {NVN : Σ[ N ∈ (Σ , y) ⁏ ∅ ⊢ `ℕ ] Value (Σ , y) N}
     → μ ∋ₘ x ↪ MVM
     → μ ⊗ y ↪ NVN ∋ₘ x ↪ renameN MVM
-
---∋ₘext : ∀{x Σ Ω} {Σ⊆Ω : Σ ⊆ Ω} {μ : Map Ω} {E : Ω ⁏ ∅ ⊢ `ℕ} {VE : Value Ω E}
---      → μ ∋ₘ x ↪ VE → μ ∋ₘ x ↪ ?
---∋ₘext {Σ⊆Ω = Σ⊆Ω} {μ = μ} {E} {VE} μ∋ₘx with renameN E VE
---... | ⟨ E' , VE' ⟩ with extᵥ Σ⊆Ω VE'
---... | VE'' = {!!}
-
---lookupₘ (m ⊗ x ↪ M) y with x ≟ y
---...                      | yes _ = {!M!}
---...                      | no  _ = lookupₘ m y
---lookupₘ ∅ _ = ⊥-elim impossible
---                where postulate impossible : ⊥
-
---data _⦂_ : Map → Store → Set where
---  dom⊇ : ∀ {μ Σ}
---        → (∀ {a} → Σ ∋ₛ a → Σ[ V ∈ ∅ ⁏ ∅ ⊢ `ℕ ] (μ ∋ₘ a ↪ V × Value ∅ V))
-
---shrink' ∀ {Σ Γ Ω} → (μ : Map Ω) → Σ ⊆ Ω → Σ ∋ₛ x → ∃[ VE ] μ
 
 force : ∀ {Σ x y} → Σ , y ∋ₛ x → ¬ x ≡ y → Σ ∋ₛ x
 force Z np       = ⊥-elim (np refl)
@@ -377,19 +340,8 @@ lookupₘ (_⊗_↪_ {Σ} m y ⟨ E , VE ⟩) x ∋x with x ≟ y
 ... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ = let ⟨ E'' , VE'' ⟩ = renameN ⟨ E' , VE' ⟩
                                in  ⟨ E'' , ⟨ VE'' , (S ∋ₘx) ⟩ ⟩
 
---_ : ∀ → μ ∋ₘ x ↪
-
---extₘ : ∀ {Σ Ω x} → Σ ∋ₛ x → (Σ⊆Ω : Σ ⊆ Ω) → (μ : Map Ω) → Σ[ E ∈ Σ ⁏ ∅ ⊢ `ℕ ] Σ[ VE ∈ Value Σ E ] μ ∋ₘ x ↪ (extᵥ Σ⊆Ω VE)
---extₘ {Σ} {Ω} {x} ∋ₛx Σ⊆Ω m with lookupₘ m x (Σ⊆Ω ∋ₛx)
---... | ⟨ E , ⟨ VE , ∋ₘVE ⟩ ⟩ with shrink Σ⊆Ω E VE
---... | ⟨ E' , VE' ⟩ = ⟨ E' , ⟨ VE' , {!!} ⟩ ⟩
-
 data State (Σ : Store) (Γ : Context) (a : CType) : Set where
   _⟪_⟫_ : ∀ {Ω} → Σ ⁏ Γ ⊩ a → Σ ⊆ Ω → Map Ω → State Σ Γ a
-
---data Ok (Σ : Store) : ∀ {Γ a} → State Γ a → Set where
---  ok : ∀ {Γ μ} → (C : Σ ⁏ Γ ⊩ ok) → μ ⦂ Σ
---     → Ok Σ (C ⟪ id ⟫ μ)
 
 data Final : ∀ {Σ Γ a} → Store → State Γ a Σ → Set where
   F-ret : ∀ {Σ Ω Γ} {V : Σ ⁏ Γ ⊢ `ℕ} {μ : Map Ω} {Σ⊆Ω : Σ ⊆ Ω}
@@ -439,38 +391,29 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Σ Γ a → State Σ Γ a →
            → {VE : Value Σ E} → {VE' : Value (Σ , x) E'}
            → StepC Σ (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ μ) (ret (proj₁ $ renameN ⟨ E' , VE' ⟩) ⟪ Σ⊆Ω ⟫ μ)
 
---a ⊢[ x ]→ b = StepC x a b
-
-
---data _∥_—↦_∥_ : State → Store → State → Set where
---  S-ret : ∀ {M M' μ}
---        → M —→ M'
---        ------------
---        →
-
---infix  2 _—↠_
+infix  2 _—↠_
 --infix  2 _⊢↠_
---infix  1 begin_
---infixr 2 _—→⟨_⟩_
---infix  3 _∎
+infix  1 start_
+infixr 2 _—→⟨_⟩_
+infix  3 _end
 
---data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
---
---  _∎ : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
---     ------
---     → M —↠ M
---
---  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
---          → L —→ M
---          → M —↠ N
---          ------
---          → L —↠ N
---
---begin_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
---  → M —↠ N
---  ------
---  → M —↠ N
---begin M—↠N = M—↠N
+data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
+
+  _end : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
+     ------
+     → M —↠ M
+
+  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
+          → L —→ M
+          → M —↠ N
+          ------
+          → L —↠ N
+
+start_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
+  → M —↠ N
+  ------
+  → M —↠ N
+start M—↠N = M—↠N
 
 data Progress {Σ A} (M : Σ ⁏ ∅ ⊢ A) : Set where
   done : Value Σ M → Progress M
@@ -501,35 +444,6 @@ progress (case L M N) with progress L
 progress (μ N)                          = step (β-μ)
 progress (cmd C)                        = done V-cmd
 
---progress'-bnd : ∀ {Σ Ω Ω' x} {Σ⊆Ω : Σ ⊆ Ω} {Σx⊆Ω' : (Σ , x) ⊆ Ω'} {C C' : (Σ , x) ⁏ ∅ ⊩ ok}
---                  {m : Map Ω} {m' : Map Ω'} {E : (Ω , x) ⁏ ∅ ⊢ `ℕ} {VE : Value (Ω , x) E}
---              → StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ VE) (C' ⟪ Σx⊆Ω' ⟫ m')
---              → Σ[ m'' ∈ Map Ω' ] Σ[ E' ∈ (Ω' , x) ⁏ ∅ ⊢ `ℕ ] Σ[ VE' ∈ Value (Ω' , x) E' ]
---                StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ VE) (C' ⟪ S ∘ Σx⊆Ω' ⟫ m'' ⊗ x ↪ VE')
-
---progress'-bnd C⊢→C' = {!C⊢→C'!}
-
---progress'-bnd : ∀ {Σ Ω x} {Σ⊆Ω : Σ ⊆ Ω} {C : (Σ , x) ⁏ ∅ ⊩ ok} {m : Map Ω} {E : (Ω , x) ⁏ ∅ ⊢ `ℕ} {VE : Value (Ω , x) E}
---              → Progress' (C ⟪ ext' Σ⊆Ω ⟫ (m ⊗ x ↪ VE))
---              → Σ[ Ω' ∈ Store ] Σ[ Σ⊆Ω' ∈ Σ ⊆ Ω' ] Σ[ C' ∈ (Σ , x) ⁏ ∅ ⊩ ok ] Σ[ m' ∈ Map Ω' ] Σ[ E' ∈ (Ω' , x) ⁏ ∅ ⊢ `ℕ ] Σ[ VE' ∈ Value (Ω' , x) E' ]
---                StepC (Σ , x) (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ VE) (C' ⟪ ext' Σ⊆Ω' ⟫ m' ⊗ x ↪ VE')
---progress'-bnd {Σ} {Ω} {x} {Σ⊆Ω} {C} {m} {E} {VE} (done (F-ret VV)) = ⟨ Ω , ⟨ Σ⊆Ω , ⟨ C , ⟨ m , ⟨ E , ⟨ VE , {!!} ⟩ ⟩ ⟩ ⟩ ⟩ ⟩
---progress'-bnd {Σ} {Ω} {x} {Σ⊆Ω} {C} {m} {E} {VE} (step C→) = {!!}
---progress'-bnd {Σ} {x} {C} {m} {E} {VE} (done (F-ret VV)) = C ⟪ id ⟫ m ⊗ x ↪ VE
---progress'-bnd (step {C' = C'} {μ' = ∅} {Σ⊆Ω' = Σ⊆Ω'} C⊢→C') = C' ⟪ Σ⊆Ω' ⟫ ∅
---progress'-bnd (step {Σ} {C' = C'} {μ' = m' ⊗ x ↪ VE'} {Σ⊆Ω' = Σ⊆Ω'} C⊢→C') = (C' ⟪ Σ⊆Ω' ⟫ m' ⊗ x ↪ VE')
-
---pbnd : StepC
-
---progress'' : ∀ {Σ x} → (S : State ∅ ok (Σ , x)) → Progress' S
---progress'' (ret E ⟪ sub ⟫ m) with progress E
---... | done VE = done (F-ret VE)
---progress'' (bnd x C ⟪ sub ⟫ m) = {!!}
---progress'' (dcl a x C ⟪ sub ⟫ m) = {!!}
---progress'' (get a x ⟪ sub ⟫ m) = {!!}
---progress'' (set a x x₁ ⟪ sub ⟫ m) = {!!}
-
-{-# TERMINATING #-}
 progress' : ∀ {Σ} → (S : State Σ ∅ ok) → Progress' S
 
 progress' (ret E ⟪ Σ⊆Ω ⟫ m) with progress E
@@ -546,55 +460,39 @@ progress' (bnd (cmd (ret E₁)) C₂ ⟪ Σ⊆Ω ⟫ m) | done VE | done FC₁ |
 
 progress' (get x ∋x ⟪ Σ⊆Ω ⟫ m) with lookupₘ m x (Σ⊆Ω ∋x)
 ... | ⟨ E  , ⟨ VE , ∋ₘVE ⟩ ⟩ = step (β-get {μ = m} {E = E} {VE = VE} {∋ₘx = ∋ₘVE})
+
 progress' (set x ∋x E ⟪ Σ⊆Ω ⟫ m) with progress E
 ...                                 | step E—→N = step (ξ-set E—→N)
 ...                                 | done VE = step (β-setret VE)
+
 progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) with progress E
 ...                                 | step E—→N = step (ξ-dcl₁ E—→N)
 ...                                 | done VE with progress' (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ renameN ⟨ E , VE ⟩)
-... | step {Σ} {Ω} {Ω'} {μ = μ} {μ' = μ'} {Σ⊆Ωx} {Σx⊆Ω'} C⊢→C' with lookupₘ μ' x (Σx⊆Ω' Z)
-... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ with subsT (λ x₁ → μ' ∋ₘ x ↪ x₁) (sym eqN) ∋ₘx
-... | ∋ₘx' = let ⟨ E'' , VE'' ⟩ = renameN ⟨ E' , VE' ⟩
-             in step (ξ-dcl₂ {E' = E''} {VE' = VE''} {∋x = Σx⊆Ω' Z} {∋ₘVE' = ∋ₘx'} C⊢→C')
---progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₁ → S (Σ⊆Ω x₁)) VE)} {∅} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
---progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₃ → S (Σ⊆Ω x₃)) VE)} {μ' ⊗ y ↪ VE'} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
+... | step {μ' = μ'} {Σ⊆Ωx} {Σx⊆Ω'} C⊢→C' with lookupₘ μ' x (Σx⊆Ω' Z)
+...   | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ with subsT (λ x₁ → μ' ∋ₘ x ↪ x₁) (sym eqN) ∋ₘx
+...     | ∋ₘx' = let ⟨ E'' , VE'' ⟩ = renameN ⟨ E' , VE' ⟩
+                 in step (ξ-dcl₂ {E' = E''} {VE' = VE''} {∋x = Σx⊆Ω' Z} {∋ₘVE' = ∋ₘx'} C⊢→C')
+
 progress' (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ m) | done VE | done (F-ret VE') = step (β-dclret {VE = VE} {VE' = VE'})
 
---progress' (ret E) _ with progress E
---...                    | done VE = done (F-ret VE)
---...                    | step E—→N = step (ξ-ret E—→N)
---progress' (bnd E C) μ⦂Σ with progress E
---progress' (bnd E C) μ⦂Σ | step E—→N = step (ξ-bnd E—→N)
---progress' (bnd (cmd C₁) C₂) μ⦂Σ | done VE with progress' C₁ μ⦂Σ
---progress' (bnd (cmd C₁) C₂) μ⦂Σ | done VE | step C₁⊢→C' = step (ξ-bndcmd C₁⊢→C')
---progress' (bnd (cmd (ret E₁)) C₂) μ⦂Σ | done VE | done FC₁ with progress E₁
---progress' (bnd (cmd (ret E₁)) C₂) μ⦂Σ | done VE | done FC₁ | step E₁—→N = step (ξ-bndcmd (ξ-ret E₁—→N))
---progress' (bnd (cmd (ret E₁)) C₂) μ⦂Σ | done VE | done FC₁ | done VE₁ = step (β-bndret VE₁)
---progress' (get x ∋x) (dom⊇ prf) with prf ∋x
---...                             | res with proj₁ res | proj₂ res
---...                                   | V | t2 with proj₁ t2 | proj₂ t2
---...                                             | ∋ₘx | VV = step (β-get {E = {!!}} {∋x = ∋x} {∋ₘx = {!!}})
---progress' (set x ∋x E) (dom⊇ _) = {!!}
---progress' (dcl x E C) (dom⊇ _) = {!!}
+data Gas : Set where
+  gas : ℕ → Gas
 
---data Gas : Set where
---  gas : ℕ → Gas
---
---
---data Finished {Γ A} (N : Γ ⊢ A) : Set where
---  done       : Value N → Finished N
---  out-of-gas : Finished N
---
---data Steps : ∀ {A} → ∅ ⊢ A → Set where
---  steps : ∀ {A} {L N : ∅ ⊢ A}
---        → L —↠ N → Finished N → Steps L
---
---eval : ∀ {A} → Gas → (L : ∅ ⊢ A) → Steps L
---eval (gas zero) L = steps (L ∎) out-of-gas
---eval (gas (suc x)) L with progress L
---... | done VL   = steps (L ∎) (done VL)
---... | step {M} L—→M with eval (gas x) M
---...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
+
+data Finished {Σ Γ A} (N : Σ ⁏ Γ ⊢ A) : Set where
+  done       : Value Σ N → Finished N
+  out-of-gas : Finished N
+
+data Steps : ∀ {Σ A} → Σ ⁏ ∅ ⊢ A → Set where
+  steps : ∀ {Σ A} {L N : Σ ⁏ ∅ ⊢ A}
+        → L —↠ N → Finished N → Steps L
+
+eval : ∀ {Σ A} → Gas → (L : Σ ⁏ ∅ ⊢ A) → Steps L
+eval (gas zero) L = steps (L end) out-of-gas
+eval (gas (suc x)) L with progress L
+... | done VL   = steps (L end) (done VL)
+... | step {M} L—→M with eval (gas x) M
+...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
 
 --mutual
 --  data Term : Set where
