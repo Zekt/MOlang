@@ -1,4 +1,4 @@
-open import Relation.Binary.PropositionalEquality as Eq using (_≡_; _≢_; refl)
+open import Relation.Binary.PropositionalEquality as Eq using (_≡_; _≢_; refl; cong; cong₂; sym) renaming (subst to subsT)
 open Eq.≡-Reasoning using (begin_; _≡⟨_⟩_; _≡⟨⟩_; _∎)
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
@@ -28,6 +28,7 @@ infix  9 `_
 infix  9 #_
 infix  4 _⟪_⟫_
 --infix  9 _[_:=_]
+
 
 Id : Set
 Id = String
@@ -310,9 +311,25 @@ renameN ⟨ `zero , V-zero ⟩ = ⟨ `zero , V-zero ⟩
 renameN ⟨ `suc E , V-suc VE ⟩ with renameN ⟨ E , VE ⟩
 ... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
 
+--ide₁ : 
+
+ide : ∀ {Σ Ω : Store} {Γ : Context} {EVE : Σ[ E ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E}
+    → renameN {Ω} {Σ} {Γ} (renameN {Σ} {Ω} {Γ} EVE) ≡ EVE
+ide {EVE = ⟨ `zero , V-zero ⟩} = refl
+ide {Σ} {Ω} {Γ} {EVE = ⟨ `suc E , V-suc VE ⟩}
+           = let EVE' = renameN {Σ} {Ω} {Γ} ⟨ E , VE ⟩
+                 ⟨ E'' , VE'' ⟩ = renameN {Ω} {Σ} {Γ} EVE'
+             in  begin
+                  ⟨ `suc E'' , V-suc VE'' ⟩
+                 ≡⟨ cong (λ {(⟨ e , ve ⟩) → ⟨ `suc e , V-suc ve ⟩}) (ide {Σ = Σ} {Ω = Ω} {EVE = ⟨ E , VE ⟩})  ⟩
+                  ⟨ `suc E , V-suc VE ⟩
+                 ∎
+
 eqN : ∀ {Σ Ω Γ} {E : Ω ⁏ Γ ⊢ `ℕ} {VE : Value Ω E}
-    → ⟨ E , VE ⟩ ≡ renameN {Σ} {Ω} {Γ} ⟨ (proj₁ $ renameN {Ω} {Σ} {Γ} ⟨ E , VE ⟩) , (proj₂ $ renameN {Ω} {Σ} {Γ} ⟨ E , VE ⟩) ⟩
-eqN {Σ} {Ω} {Γ} {E} {VE} = begin ⟨ E , VE ⟩ ≡⟨ {!!} ⟩ {!!} ∎
+    → renameN {Σ} {Ω} {Γ} ⟨ (proj₁ $ renameN {Ω} {Σ} {Γ} ⟨ E , VE ⟩) , (proj₂ $ renameN {Ω} {Σ} {Γ} ⟨ E , VE ⟩) ⟩ ≡ ⟨ E , VE ⟩
+eqN {Σ} {Ω} {Γ} {E} {VE} = let ⟨ E' , VE' ⟩ = renameN {Ω} {Σ} {Γ} ⟨ E , VE ⟩
+                               ⟨ E'' , VE'' ⟩ = renameN {Σ} {Ω} {Γ} ⟨ E' , VE' ⟩
+                           in begin ⟨ E'' , VE'' ⟩ ≡⟨ ide ⟩ ⟨ E , VE ⟩ ∎
 
 data Same : ∀{Σ Ω Γ} {E : Σ ⁏ Γ ⊢ `ℕ} {E' : Ω ⁏ Γ ⊢ `ℕ} → Value Σ E → Value Ω E' → Set where
   same : ∀ {Σ Γ} {E : Σ ⁏ Γ ⊢ `ℕ} → (VE : Value Σ E) → Same VE VE
@@ -512,6 +529,7 @@ progress (cmd C)                        = done V-cmd
 --progress'' (get a x ⟪ sub ⟫ m) = {!!}
 --progress'' (set a x x₁ ⟪ sub ⟫ m) = {!!}
 
+{-# TERMINATING #-}
 progress' : ∀ {Σ} → (S : State Σ ∅ ok) → Progress' S
 
 progress' (ret E ⟪ Σ⊆Ω ⟫ m) with progress E
@@ -534,9 +552,10 @@ progress' (set x ∋x E ⟪ Σ⊆Ω ⟫ m) with progress E
 progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) with progress E
 ...                                 | step E—→N = step (ξ-dcl₁ E—→N)
 ...                                 | done VE with progress' (C ⟪ ext' Σ⊆Ω ⟫ m ⊗ x ↪ renameN ⟨ E , VE ⟩)
-... | step {μ = μ} {μ' = μ'} {Σ⊆Ωx} {Σx⊆Ω'} C⊢→C' with lookupₘ μ' x (Σx⊆Ω' Z)
-... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ = let ⟨ E'' , VE'' ⟩ = renameN ⟨ E' , VE' ⟩
-                               in step (ξ-dcl₂ {E' = E''} {VE' = VE''} {∋x = Σx⊆Ω' Z} {∋ₘVE' = {!!}} C⊢→C')
+... | step {Σ} {Ω} {Ω'} {μ = μ} {μ' = μ'} {Σ⊆Ωx} {Σx⊆Ω'} C⊢→C' with lookupₘ μ' x (Σx⊆Ω' Z)
+... | ⟨ E' , ⟨ VE' , ∋ₘx ⟩ ⟩ with subsT (λ x₁ → μ' ∋ₘ x ↪ x₁) (sym eqN) ∋ₘx
+... | ∋ₘx' = let ⟨ E'' , VE'' ⟩ = renameN ⟨ E' , VE' ⟩
+             in step (ξ-dcl₂ {E' = E''} {VE' = VE''} {∋x = Σx⊆Ω' Z} {∋ₘVE' = ∋ₘx'} C⊢→C')
 --progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₁ → S (Σ⊆Ω x₁)) VE)} {∅} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
 --progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) | done VE | step {μ = .(m ⊗ x ↪ extᵥ (λ {a} x₃ → S (Σ⊆Ω x₃)) VE)} {μ' ⊗ y ↪ VE'} {.(λ {a} → ext' Σ⊆Ω)} {Σ⊆Ω'x} C⊢→C' = step {!!}
 progress' (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ m) | done VE | done (F-ret VE') = step (β-dclret {VE = VE} {VE' = VE'})
