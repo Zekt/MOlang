@@ -2,13 +2,13 @@ open import main
 
 module terms where
 
-sucμ : ∅ ⊢ `ℕ
+sucμ : ∅ ⁏ ∅ ⊢ `ℕ
 sucμ = μ (`suc (# 0))
 
-M₂ : ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
+M₂ : ∅ ⁏ ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
 M₂ = ƛ (# 1 · (# 1 · # 0))
 
-M : ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
+M : ∅ ⁏ ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
 M = # 0
 
 --two : Term
