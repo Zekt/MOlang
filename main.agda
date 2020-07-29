@@ -285,15 +285,6 @@ data Map : Store → Set where
 _⊆_ : Store → Store → Set
 Σ ⊆ Ω = ∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a
 
-extᵥ : ∀ {Σ Ω Γ} {E : Σ ⁏ Γ ⊢ `ℕ} → (Σ⊆Ω : Σ ⊆ Ω) → Value Σ E → Value Ω (rename Σ⊆Ω id E)
-extᵥ Σ⊆Ω V-zero = V-zero
-extᵥ Σ⊆Ω (V-suc VE) = V-suc (extᵥ Σ⊆Ω VE)
-
-shrink : ∀ {Σ Γ Ω} → Σ ⊆ Ω → (E : Ω ⁏ Γ ⊢ `ℕ) → Value Ω E → Σ[ E' ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E'
-shrink Σ⊆Ω .`zero V-zero = ⟨ `zero , V-zero ⟩
-shrink Σ⊆Ω (`suc e) (V-suc VE) with shrink Σ⊆Ω e VE
-... | ⟨ E' , VE' ⟩ = ⟨ `suc E' , V-suc VE' ⟩
-
 renameN : ∀ {Σ Ω Γ} → Σ[ E ∈ Σ ⁏ Γ ⊢ `ℕ ] Value Σ E → Σ[ E' ∈ Ω ⁏ Γ ⊢ `ℕ ] Value Ω E'
 renameN ⟨ `zero , V-zero ⟩ = ⟨ `zero , V-zero ⟩
 renameN ⟨ `suc E , V-suc VE ⟩ with renameN ⟨ E , VE ⟩
@@ -391,30 +382,6 @@ data StepC : ∀ {Γ a} → (Σ : Store) → State Σ Γ a → State Σ Γ a →
            → {VE : Value Σ E} → {VE' : Value (Σ , x) E'}
            → StepC Σ (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ μ) (ret (proj₁ $ renameN ⟨ E' , VE' ⟩) ⟪ Σ⊆Ω ⟫ μ)
 
-infix  2 _—↠_
---infix  2 _⊢↠_
-infix  1 start_
-infixr 2 _—→⟨_⟩_
-infix  3 _end
-
-data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
-
-  _end : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
-     ------
-     → M —↠ M
-
-  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
-          → L —→ M
-          → M —↠ N
-          ------
-          → L —↠ N
-
-start_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
-  → M —↠ N
-  ------
-  → M —↠ N
-start M—↠N = M—↠N
-
 data Progress {Σ A} (M : Σ ⁏ ∅ ⊢ A) : Set where
   done : Value Σ M → Progress M
   step : {N : Σ ⁏ ∅ ⊢ A} → M —→ N → Progress M
@@ -476,6 +443,45 @@ progress' (dcl x E C ⟪ Σ⊆Ω ⟫ m) with progress E
 
 progress' (dcl x E (ret E') ⟪ Σ⊆Ω ⟫ m) | done VE | done (F-ret VE') = step (β-dclret {VE = VE} {VE' = VE'})
 
+infix  2 _—↠_
+infix  2 _—↣_
+infix  1 start_
+infixr 2 _—→⟨_⟩_
+infixr 2 _—↦⟨_⟩_
+infix  3 _end
+
+data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
+
+  _end : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
+       ------
+       → M —↠ M
+
+  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
+          → L —→ M
+          → M —↠ N
+          ------
+          → L —↠ N
+
+start_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
+       → M —↠ N
+       ------
+       → M —↠ N
+start M—↠N = M—↠N
+
+data _—↣_ : ∀ {Σ Γ A} → State Σ Γ A → State Σ Γ A → Set where
+  _stop : ∀ {Σ Γ A} (S : State Σ Γ A)
+        → S —↣ S
+
+  _—↦⟨_⟩_ : ∀ {Σ Γ A} (S : State Σ Γ A) → {T U : State Σ Γ A}
+          → StepC Σ S T
+          → T —↣ U
+          → S —↣ U
+
+run_ : ∀ {Σ Γ A} {S T : State Σ Γ A}
+     → S —↣ T
+     → S —↣ T
+run S—↣T = S—↣T
+
 data Gas : Set where
   gas : ℕ → Gas
 
@@ -484,9 +490,17 @@ data Finished {Σ Γ A} (N : Σ ⁏ Γ ⊢ A) : Set where
   done       : Value Σ N → Finished N
   out-of-gas : Finished N
 
+data Finished' {Σ Γ A} (S : State Σ Γ A) : Set where
+  done       : Final Σ S → Finished' S
+  out-of-gas : Finished' S
+
 data Steps : ∀ {Σ A} → Σ ⁏ ∅ ⊢ A → Set where
   steps : ∀ {Σ A} {L N : Σ ⁏ ∅ ⊢ A}
         → L —↠ N → Finished N → Steps L
+
+data Steps' : ∀ {Σ A} → State Σ ∅ A → Set where
+  steps : ∀ {Σ A} {S T : State Σ ∅ A}
+        → S —↣ T → Finished' T → Steps' S
 
 eval : ∀ {Σ A} → Gas → (L : Σ ⁏ ∅ ⊢ A) → Steps L
 eval (gas zero) L = steps (L end) out-of-gas
@@ -494,3 +508,10 @@ eval (gas (suc x)) L with progress L
 ... | done VL   = steps (L end) (done VL)
 ... | step {M} L—→M with eval (gas x) M
 ...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
+
+eval' : ∀ {Σ} → Gas → (S : State Σ ∅ ok) → Steps' S
+eval' (gas zero) s = steps (s stop) out-of-gas
+eval' (gas (suc x)) s with progress' s
+... | done FS = steps (s stop) (done FS)
+... | step {C' = C'} {μ' = μ'} {Σ⊆Ω' = Σ⊆Ω'} S—↦T with eval' (gas x) (C' ⟪ Σ⊆Ω' ⟫ μ')
+...   | steps T—↣U fin = steps (s —↦⟨ S—↦T ⟩ T—↣U) fin
