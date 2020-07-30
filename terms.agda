@@ -1,3 +1,5 @@
+open import Data.Product using (_×_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Function using (id; _$_; _∘_)
 open import main
 
 module terms where
@@ -41,5 +43,8 @@ sucᶜ = ƛ (`suc (# 0))
 2+2ᶜ : ∀ {Σ Γ} → Σ ⁏ Γ ⊢ `ℕ
 2+2ᶜ = plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero
 
-cmdᶜ : ∀ {Σ Γ} → Σ ⁏ Γ ⊩ ok
-cmdᶜ = set "x" {!!} 2+2ᶜ
+cmdᶜ : ∀ {Σ Γ} → (Σ , "x") ⁏ Γ ⊩ ok
+cmdᶜ = bnd (cmd (set "x" Z 2+2ᶜ)) (get "x" Z)
+
+S1 : State (∅ , "x") ∅ ok
+S1 = cmdᶜ ⟪ id ⟫ (∅ ⊗ "x" ↪ _)
