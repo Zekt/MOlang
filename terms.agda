@@ -48,3 +48,9 @@ cmdᶜ = bnd (cmd (set "x" Z 2+2ᶜ)) (get "x" Z)
 
 S1 : State (∅ , "x") ∅ ok
 S1 = cmdᶜ ⟪ id ⟫ (∅ ⊗ "x" ↪ _)
+
+get&inc : ∀ {Σ Γ} → (Σ , "counter") ⁏ Γ ⊩ ok
+get&inc = bnd (cmd (get "counter" Z)) (set "counter" Z (`suc # 0))
+
+get&inc1 : State (∅ , "counter") ∅ ok
+get&inc1 = get&inc ⟪ id ⟫ (∅ ⊗ "counter" ↪ ⟨ `suc `zero , V-suc V-zero ⟩)
