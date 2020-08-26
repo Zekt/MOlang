@@ -49,8 +49,13 @@ cmdᶜ = bnd (cmd (set "x" Z 2+2ᶜ)) (get "x" Z)
 S1 : State (∅ , "x") ∅ ok
 S1 = cmdᶜ ⟪ id ⟫ (∅ ⊗ "x" ↪ _)
 
+
 get&inc : ∀ {Σ Γ} → (Σ , "counter") ⁏ Γ ⊩ ok
 get&inc = bnd (cmd (get "counter" Z)) (set "counter" Z (`suc # 0))
 
-get&inc1 : State (∅ , "counter") ∅ ok
-get&inc1 = get&inc ⟪ id ⟫ (∅ ⊗ "counter" ↪ ⟨ `suc `zero , V-suc V-zero ⟩)
+get&incx : (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E) → State (∅ , "counter") ∅ ok
+get&incx E VE = get&inc ⟪ id ⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
+
+prf-get&incx : ∀ (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E)
+             → ∃[ C ] EvalTo (get&incx E VE) (C ⟪ id ⟫ ∅ ⊗ "counter" ↪ ⟨ `suc E , V-suc VE ⟩ )
+prf-get&incx E VE = ⟨ {!  !} , evalto {!!} {!!} ⟩

@@ -444,8 +444,7 @@ progress' (dcl x E C) Σ⊆Ω m with progress E
 
 progress' (dcl x E (ret E')) Σ⊆Ω m | done VE | done (F-ret VE') = step (β-dclret {VE = VE} {VE' = VE'})
 
-infix  2 _—↠_
-infix  2 _—↣_
+infix  2 _—↠_ _—↣_
 infix  1 start_
 infixr 2 _—→⟨_⟩_
 infixr 2 _—↦⟨_⟩_
@@ -503,6 +502,9 @@ data Steps' : ∀ {Σ A} → State Σ ∅ A → Set where
   steps : ∀ {Σ A} {S T : State Σ ∅ A}
         → S —↣ T → Finished' T → Steps' S
 
+data EvalTo : ∀ {Σ} → State Σ ∅ ok → State Σ ∅ ok → Set where
+  evalto : ∀ {Σ} → {S T : State Σ ∅ ok} → S —↣ T → Final Σ T → EvalTo S T
+
 eval : ∀ {Σ A} → Gas → (L : Σ ⁏ ∅ ⊢ A) → Steps L
 eval (gas zero) L = steps (L end) out-of-gas
 eval (gas (suc x)) L with progress L
@@ -519,7 +521,7 @@ eval' (gas (suc x)) s@(C ⟪ prf ⟫ m) with progress' C prf m
 
 --data ProgramList (Σ : Store) : Set where
 --  single : ∀ {Ω Γ a} → State Σ Γ a → ProgramList Σ
---  multi  : ∀ {Ω Γ a} → State Σ Γ a → 
+--  multi  : ∀ {Ω Γ a} → State Σ Γ a →
 
 ProgramList : Store → Set
 ProgramList Σ = List⁺ (Σ ⁏ ∅ ⊩ ok)
