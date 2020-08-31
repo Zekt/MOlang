@@ -524,12 +524,34 @@ eval' (gas (suc x)) s@(C ⟪ prf ⟫ m) with progress' C prf m
 --  multi  : ∀ {Ω Γ a} → State Σ Γ a →
 
 ProgramList : Store → Set
-ProgramList Σ = List⁺ (Σ ⁏ ∅ ⊩ ok)
+ProgramList Σ = List (Σ ⁏ ∅ ⊩ ok)
 
 --Concurrent States
 data CState (Σ : Store) : Set where
   _⟦_⟧_ : ∀ {Ω} → ProgramList Σ → Σ ⊆ Ω → Map Ω → CState Σ
 
---data StepCS : (Σ : Store) → CState Σ → Set where
---  _ : ∀ {Σ Ω Σ' Ω' μ} {Σ⊆Ω : Σ ⊆ Ω} {Σ'⊆Ω' : Σ' ⊆ Ω'}
---    → StepS Σ (C ⟪ Σ⊆Ω ⟫ μ) (C' ⟪ Σ⊆Ω ⟫ )
+data StepCS {Σ : Store} : CState Σ → CState Σ → Set where
+  head : {C C' : Σ ⁏ ∅ ⊩ ok} {μ μ' : Map Σ} {Cs : ProgramList Σ}
+       → StepS Σ (C ⟪ id ⟫ μ) (C' ⟪ id ⟫ μ')
+       → StepCS ((C ∷ Cs) ⟦ id ⟧ μ) ((C' ∷ Cs) ⟦ id ⟧ μ')
+  tail : ∀ {C : Σ ⁏ ∅ ⊩ ok} {μ μ' : Map Σ} {Cs Cs' : ProgramList Σ}
+       → StepCS (Cs ⟦ id ⟧ μ) (Cs' ⟦ id ⟧ μ')
+       → StepCS ((C ∷ Cs) ⟦ id ⟧ μ) ((C ∷ Cs') ⟦ id ⟧ μ')
+
+
+data StepCS* : ∀ {Σ} → CState Σ → CState Σ → Set where
+  _stop : ∀ {Σ} (S : CState Σ)
+        → StepCS* S S
+
+  _—↦⟨_⟩_ : ∀ {Σ} (S : CState Σ) → {T U : CState Σ}
+          → StepCS S T
+          → StepCS* T U
+          → StepCS* S U
+
+data Final* (Σ : Store) : CState Σ → Set where
+  onedone : ∀ {C : Σ ⁏ ∅ ⊩ ok} {μ : Map Σ}
+          → Final  Σ (C ⟪ id ⟫ μ)
+          → Final* Σ ((C ∷ []) ⟦ id ⟧ μ)
+  alldone : ∀ {C : Σ ⁏ ∅ ⊩ ok} {Cs : ProgramList Σ} {μ : Map Σ}
+          → Final  Σ (C ⟪ id ⟫ μ) → Final* Σ (Cs ⟦ id ⟧ μ)
+          → Final* Σ ((C ∷ Cs) ⟦ id ⟧ μ)

@@ -1,23 +1,9 @@
 open import Data.Product using (_×_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Function using (id; _$_; _∘_)
+open import Data.List using (List; _∷_; [])
 open import main
 
 module terms where
-
-
-infix  4 _⊢_
-infix  4 _∋_
-infixl 5 _,_
-
-infixr 7 _⇒_
-
-infix  5 ƛ_
-infix  5 μ_
-infixl 7 _·_
-infix  8 `suc_
-infix  9 `_
-infix  9 S_
-infix  9 #_
 
 sucμ : ∅ ⁏ ∅ ⊢ `ℕ
 sucμ = μ (`suc (# 0))
@@ -47,7 +33,7 @@ cmdᶜ : ∀ {Σ Γ} → (Σ , "x") ⁏ Γ ⊩ ok
 cmdᶜ = bnd (cmd (set "x" Z 2+2ᶜ)) (get "x" Z)
 
 S1 : State (∅ , "x") ∅ ok
-S1 = cmdᶜ ⟪ id ⟫ (∅ ⊗ "x" ↪ _)
+S1 = cmdᶜ ⟪ id ⟫ (∅ ⊗ "x" ↪ ⟨ `zero , V-zero ⟩ )
 
 
 get&inc : ∀ {Σ Γ} → (Σ , "counter") ⁏ Γ ⊩ ok
@@ -56,6 +42,17 @@ get&inc = bnd (cmd (get "counter" Z)) (set "counter" Z (`suc # 0))
 get&incx : (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E) → State (∅ , "counter") ∅ ok
 get&incx E VE = get&inc ⟪ id ⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
 
-prf-get&incx : ∀ (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E)
-             → ∃[ C ] EvalTo (get&incx E VE) (C ⟪ id ⟫ ∅ ⊗ "counter" ↪ ⟨ `suc E , V-suc VE ⟩ )
-prf-get&incx E VE = ⟨ {!  !} , evalto {!!} {!!} ⟩
+--prf-get&incx : ∀ (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E)
+--             → ∃[ C ] EvalTo (get&incx E VE) (C ⟪ id ⟫ ∅ ⊗ "counter" ↪ ⟨ `suc E , V-suc VE ⟩ )
+--prf-get&incx E VE = ⟨ {!!} , evalto {!!} {!!} ⟩
+
+data IdIs (Σ : Store) : CState Σ → Id → (Σ ⁏ ∅ ⊢ `ℕ) → Set where
+  idis : ∀ {PL : ProgramList Σ} {μ : Map Σ} → (name : Id)
+       → (V : Σ ⁏ ∅ ⊢ `ℕ) → (VE : Value Σ V) → (μ∋i : μ ∋ₘ name ↪ ⟨ V , VE ⟩)
+       → IdIs Σ (PL ⟦ id ⟧ μ) name V
+
+prf-get&inc : ∀ {CS' : CState (∅ , "counter")}
+            → Final* (∅ , "counter") CS'
+            → StepCS* ((get&inc ∷ get&inc ∷ []) ⟦ id ⟧ (∅ ⊗ "counter" ↪ ⟨ `zero , V-zero ⟩)) CS'
+            → IdIs (∅ , "counter") CS' "counter" (`suc `suc `zero)
+prf-get&inc fin stepcs = {!!}
