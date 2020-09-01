@@ -42,9 +42,32 @@ get&inc = bnd (cmd (get "counter" Z)) (set "counter" Z (`suc # 0))
 get&incx : (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E) → State (∅ , "counter") ∅ ok
 get&incx E VE = get&inc ⟪ id ⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
 
---prf-get&incx : ∀ (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E)
---             → ∃[ C ] EvalTo (get&incx E VE) (C ⟪ id ⟫ ∅ ⊗ "counter" ↪ ⟨ `suc E , V-suc VE ⟩ )
---prf-get&incx E VE = ⟨ {!!} , evalto {!!} {!!} ⟩
+prf-get&incx : ∀ (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E)
+             → ∃[ C ] EvalTo (get&incx E VE) (C ⟪ S ⟫ (∅ ⊗ "counter" ↪ ⟨ E , VE ⟩) ⊗ "counter" ↪ (renameN ⟨ `suc E , V-suc VE ⟩) )
+prf-get&incx E VE = ⟨ ret (`suc E) , evalto
+    (bnd (cmd (get "counter" Z)) (set "counter" Z (`suc ` Z)) ⟪(λ {a} x → x) ⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
+  —↦⟨ ξ-bndcmd (β-get {!!} {!!}) ⟩
+    bnd (cmd (ret E)) (set "counter" Z (`suc ` Z)) ⟪ (λ {a} x → x)⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
+  —↦⟨ β-bndret VE ⟩
+    set "counter" Z (`suc E) ⟪ (λ {a} x → x) ⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
+  —↦⟨ β-setret (V-suc VE) ⟩
+    (ret (`suc E) ⟪ (λ {a} x → S x) ⟫ (∅ ⊗ "counter" ↪ ⟨ E , VE ⟩) ⊗ "counter" ↪ renameN (⟨ `suc E , V-suc VE ⟩))
+  stop)
+  (F-ret (V-suc VE)) ⟩
+--steps
+--(bnd (cmd (get "counter" Z)) (set "counter" Z (`suc ` Z)) ⟪(λ {a} x → x) ⟫ ∅ ⊗ "counter" ↪ ⟨ `zero , V-zero ⟩
+--—↦⟨ ξ-bndcmd β-get ⟩
+--bnd (cmd (ret `zero)) (set "counter" Z (`suc ` Z)) ⟪ (λ {a} x → x)
+--⟫ ∅ ⊗ "counter" ↪ ⟨ `zero , V-zero ⟩
+--—↦⟨ β-bndret V-zero ⟩
+--set "counter" Z (`suc `zero) ⟪ (λ {a} x → x) ⟫
+--∅ ⊗ "counter" ↪ ⟨ `zero , V-zero ⟩
+--—↦⟨ β-setret (V-suc V-zero) ⟩
+--((ret (`suc `zero) ⟪ (λ {a} x → S x) ⟫
+--(∅ ⊗ "counter" ↪ ⟨ `zero , V-zero ⟩) ⊗ "counter" ↪
+--⟨ `suc `zero , V-suc V-zero ⟩)
+--stop))
+--(done (F-ret (V-suc V-zero)))
 
 data IdIs (Σ : Store) : CState Σ → Id → (Σ ⁏ ∅ ⊢ `ℕ) → Set where
   idis : ∀ {PL : ProgramList Σ} {μ : Map Σ} → (name : Id)
