@@ -15,12 +15,12 @@ module main where
 
 infix 2 _—→_
 --infix 2 _⊢→_
-infix  4 _⁏_⊢_
+infix  4 _⊢_
 infix  5 _⊗_↪_
 infix  4 _∋_
 infix  4 _∋ₛ_
 infix  4 _∋ₘ_↪_
-infix  5 _,_
+infixl 5 _,_
 infixr 7 _⇒_
 infixl 7 _·_
 infix  8 `suc_
@@ -36,14 +36,19 @@ Id = String
 data CType : Set where
   ok : CType
 
-data Type : Set where
-  _⇒_   : Type → Type → Type
-  `ℕ    : Type
-  State : Type → Type
+data Type : Set
+data Context : Set
+data _⊢_ : Context → Type → Set
 
-data Context : Set where
+data Context where
   ∅   : Context
   _,_ : Context → Type → Context
+
+data Type where
+  _⇒_  : Type → Type → Type
+  `ℕ   : Type
+  `Cmd : (Id → ∅ ⊢ `ℕ) → Type → Type
+
 
 data _∋_ : Context → Type → Set where
 
@@ -61,61 +66,65 @@ data _∋ₛ_ : Store → Id → Set where
   Z : ∀ {Σ a}            → Σ , a ∋ₛ a
   S : ∀ {Σ a b} → Σ ∋ₛ a → Σ , b ∋ₛ a
 
-mutual
-  data _⁏_⊢_ : Store → Context → Type → Set where
-    `_ : ∀ {Σ Γ A}
-       → Γ ∋ A
-       ------------
-       → Σ ⁏ Γ ⊢ A
+extM : (Id → ∅ ⊢ `ℕ) → Id → ∅ ⊢ `ℕ → (Id → ∅ ⊢ `ℕ)
+extM ℳ i T j with i ≟ j
+extM ℳ i T j | yes _ = ℳ i
+extM ℳ i T j | no _ = T
 
-    ƛ : ∀ {Σ Γ A B}
-       → Σ ⁏ Γ , A ⊢ B
-       --------------------
-       → Σ ⁏ Γ ⊢ A ⇒ B
-    -- ⇒-E
-    _·_ : ∀ {Σ Γ A B}
-        → Σ ⁏ Γ ⊢ A ⇒ B   → Σ ⁏ Γ ⊢ A
-        ------------------------------
-        → Σ ⁏ Γ ⊢ B
-    -- ℕ-I₁
-    `zero : ∀ {Σ Γ}
-          --------------
-          → Σ ⁏ Γ ⊢ `ℕ
-    -- ℕ-I₂
-    `suc_ : ∀ {Σ Γ}
-          → Σ ⁏ Γ ⊢ `ℕ
-          ---------------
-          → Σ ⁏ Γ ⊢ `ℕ
-    -- ℕ-E
-    case : ∀ {Σ Γ A}
-         → Σ ⁏ Γ ⊢ `ℕ   → Σ ⁏ Γ ⊢ A   → Σ ⁏ Γ , `ℕ ⊢ A
-         ----------------------------------------------
-         → Σ ⁏ Γ ⊢ A
+data _⊢_  where
+  `_ : ∀ {Γ A}
+     → Γ ∋ A
+     ------------
+     → Γ ⊢ A
 
-    μ_ : ∀ {Σ Γ A}
-       → Σ ⁏ Γ , A ⊢ A
-       -----------------
-       → Σ ⁏ Γ ⊢ A
+  ƛ : ∀ {Γ A B}
+     → Γ , A ⊢ B
+     --------------------
+     → Γ ⊢ A ⇒ B
+  -- ⇒-E
+  _·_ : ∀ {Γ A B}
+      → Γ ⊢ A ⇒ B   → Γ ⊢ A
+      ------------------------------
+      → Γ ⊢ B
+  -- ℕ-I₁
+  `zero : ∀ {Γ}
+        --------------
+        → Γ ⊢ `ℕ
+  -- ℕ-I₂
+  `suc_ : ∀ {Γ}
+        → Γ ⊢ `ℕ
+        ---------------
+        → Γ ⊢ `ℕ
+  -- ℕ-E
+  case : ∀ {Γ A}
+       → Γ ⊢ `ℕ   → Γ ⊢ A   → Γ , `ℕ ⊢ A
+       ------------------------------------------
+       → Γ ⊢ A
 
-    ret : ∀ {Σ Γ}
-       → Σ ⁏ Γ ⊢ `ℕ
-       → Σ ⁏ Γ ⊢ State `ℕ
+  μ_ : ∀ {Γ A}
+     → Γ , A ⊢ A
+     -------------
+     → Γ ⊢ A
 
-    bnd : ∀ {Σ Γ}
-        → Σ ⁏ Γ ⊢ State `ℕ → Σ ⁏ Γ , `ℕ ⊢ State `ℕ
-        → Σ ⁏ Γ ⊢ State `ℕ
+  ret : ∀ {Γ ℳ}
+     → Γ ⊢ `ℕ
+     → Γ ⊢ `Cmd ℳ `ℕ
 
-    dcl : ∀ {Σ Γ}
-        → (a : Id) → Σ ⁏ Γ ⊢ `ℕ → (Σ , a) ⁏ Γ ⊢ State `ℕ
-        → Σ ⁏ Γ ⊢ State `ℕ
+  bnd : ∀ {Γ ℳ}
+      → Γ ⊢ `Cmd ℳ `ℕ → Γ , `ℕ ⊢ `Cmd ℳ `ℕ
+      → Γ ⊢ `Cmd ℳ `ℕ
 
-    get : ∀ {Σ Γ}
-        → (a : Id) → Σ ∋ₛ a
-        → Σ ⁏ Γ ⊢ State `ℕ
+  dcl : ∀ {Γ ℳ}
+      → (a : Id) → (E : {!!} ⊢ `ℕ) → Γ ⊢ `Cmd ℳ `ℕ
+      → Γ ⊢ `Cmd (extM ℳ a E) `ℕ
 
-    set : ∀ {Σ Γ}
-        → (a : Id) → Σ ∋ₛ a → Σ ⁏ Γ ⊢ `ℕ
-        → Σ ⁏ Γ ⊢ State `ℕ
+  get : ∀ {Γ ℳ}
+      → (a : Id) --→ Σ ∋ₛ a
+      → Γ ⊢ `Cmd ℳ `ℕ
+
+  set : ∀ {Γ ℳ}
+      → (a : Id) → (E : ∅ ⊢ `ℕ)
+      → Γ ⊢ `Cmd (extM ℳ a E) `ℕ
 
 --    cmd : ∀ {Σ Γ}
 --         → Σ ⁏ Γ ⊩ ok
@@ -126,29 +135,29 @@ mutual
 --        → Σ ⁏ Γ ⊩ ok → Σ ⁏ Γ ⊩ ok
 --        → Σ ⁏ Γ ⊩ ok
 
---lookup : Context → ℕ → Type
---lookup (Γ , A) zero    = A
---lookup (Γ , _) (suc n) = lookup Γ n
---lookup ∅       _       = ⊥-elim impossible
---  where postulate impossible : ⊥
---
---count : ∀ {Γ} → (n : ℕ) → Γ ∋ lookup Γ n
---count {Γ , _} zero    = Z
---count {Γ , _} (suc n) = S (count n)
---count {∅}     _       = ⊥-elim impossible
---  where postulate impossible : ⊥
---
---#_ : ∀ {Σ Γ} → (n : ℕ) → Σ ⁏ Γ ⊢ lookup Γ n
---
---# n = ` (count n)
---
---ext : ∀ {Γ Δ}
---    → (∀ {A}   → Γ ∋ A     → Δ ∋ A)
---    -----------------------------------
---    → (∀ {A B} → Γ , B ∋ A → Δ , B ∋ A)
---ext ρ Z     = Z
---ext ρ (S x) = S (ρ x)
---
+lookup : Context → ℕ → Type
+lookup (Γ , A) zero    = A
+lookup (Γ , _) (suc n) = lookup Γ n
+lookup ∅       _       = ⊥-elim impossible
+  where postulate impossible : ⊥
+
+count : ∀ {Γ} → (n : ℕ) → Γ ∋ lookup Γ n
+count {Γ , _} zero    = Z
+count {Γ , _} (suc n) = S (count n)
+count {∅}     _       = ⊥-elim impossible
+  where postulate impossible : ⊥
+
+#_ : ∀ {Γ} → (n : ℕ) → Γ ⊢ lookup Γ n
+
+# n = ` (count n)
+
+ext : ∀ {Γ Δ}
+    → (∀ {A}   → Γ ∋ A     → Δ ∋ A)
+    -----------------------------------
+    → (∀ {A B} → Γ , B ∋ A → Δ , B ∋ A)
+ext ρ Z     = Z
+ext ρ (S x) = S (ρ x)
+
 --ext' : ∀ {Σ Ω}
 --     → (∀ {a}   → Σ ∋ₛ a     → Ω ∋ₛ a)
 --     -----------------------------------
@@ -157,19 +166,23 @@ mutual
 --ext' ρ (S x) = S (ρ x)
 --
 --mutual
---  rename : ∀ {Σ Ω Γ Δ}
---         → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
---         → (∀ {A} → Γ ∋ A  → Δ ∋ A)
---         ----------------------------------
---         → (∀ {A} → Σ ⁏ Γ ⊢ A → Ω ⁏ Δ ⊢ A)
---  rename τ ρ (` w)        = ` (ρ w)
---  rename τ ρ (ƛ N)        = ƛ (rename τ (ext ρ) N)
---  rename τ ρ (L · M)      = (rename τ ρ L) · (rename τ ρ M)
---  rename τ ρ `zero        = `zero
---  rename τ ρ (`suc M)     = `suc (rename τ ρ M)
---  rename τ ρ (case L M N) = case (rename τ ρ L) (rename τ ρ M) (rename τ (ext ρ) N)
---  rename τ ρ (μ M)        = μ (rename τ (ext ρ) M)
---  rename τ ρ (cmd C)      = cmd (rename' τ ρ C)
+rename : ∀ {Γ Δ}
+       → (∀ {A} → Γ ∋ A  → Δ ∋ A)
+       ----------------------------------
+       → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
+rename ρ (` w)        = ` (ρ w)
+rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
+rename ρ (L · M)      = (rename ρ L) · (rename ρ M)
+rename ρ `zero        = `zero
+rename ρ (`suc M)     = `suc (rename ρ M)
+rename ρ (case L M N) = case (rename ρ L) (rename ρ M) (rename (ext ρ) N)
+rename ρ (μ M)        = μ (rename (ext ρ) M)
+rename ρ (ret N) = ret (rename ρ N)
+rename ρ (bnd E C) = bnd (rename ρ E) (rename (ext ρ) C)
+rename ρ (dcl a N C) = {!!}
+rename ρ (get a) = {!!}
+rename ρ (set a N) = {!!}
+--rename ρ (cmd C)      = cmd (rename' ρ C)
 --
 ----For now, A in _⁏_⊩_ must be ok.
 --  rename' : ∀ {Σ Ω Γ Δ}
@@ -239,25 +252,25 @@ mutual
 --    σ Z     = M
 --    σ (S x) = ` x
 --
---data Value (Σ : Store) : ∀ {Γ A} → Σ ⁏ Γ ⊢ A → Set where
---  V-ƛ    : ∀ {Γ A B} {N : Σ ⁏ Γ , A ⊢ B} → Value Σ (ƛ N)
---  V-zero : ∀ {Γ} → Value Σ (`zero {Σ} {Γ})
---  V-suc  : ∀ {Γ} {V : Σ ⁏ Γ ⊢ `ℕ} → Value Σ V → Value Σ (`suc V)
---  V-cmd  : ∀ {Γ m} → Value Σ (cmd {Σ} {Γ} m)
---
---
---data Step : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
---  ξ-·₁ : ∀ {Σ Γ A B} {L L' : Σ ⁏ Γ ⊢ A ⇒ B} {M : Σ ⁏ Γ ⊢ A}
---       → Step L L'
---       → Step (L · M) (L' · M)
---
---  ξ-·₂ : ∀ {Σ Γ A B} {V : Σ ⁏ Γ ⊢ A ⇒ B} {M M' : Σ ⁏ Γ ⊢ A}
---       → Value Σ V
---       → Step M M'
---       → Step (V · M) (V · M')
---
---  β-ƛ : ∀ {Σ Γ A B} {N : Σ ⁏ Γ , A ⊢ B} {W : Σ ⁏ Γ ⊢ A}
---       → Value Σ W
+data Value : ∀ {Γ A} → Γ ⊢ A → Set where
+  V-ƛ    : ∀ {Γ A B} {N : Γ , A ⊢ B} → Value (ƛ N)
+  V-zero : ∀ {Γ} → Value (`zero {Γ})
+  V-suc  : ∀ {Γ} {V : Γ ⊢ `ℕ} → Value V → Value (`suc V)
+  --V-cmd  : ∀ {Γ m} → Value Σ (cmd {Σ} {Γ} m)
+
+
+data Step : ∀ {Γ A} → Γ ⊢ A → Γ ⊢ A → Set where
+  ξ-·₁ : ∀ {Γ A B} {L L' : Γ ⊢ A ⇒ B} {M : Γ ⊢ A}
+       → Step L L'
+       → Step (L · M) (L' · M)
+
+  ξ-·₂ : ∀ {Γ A B} {V : Γ ⊢ A ⇒ B} {M M' : Γ ⊢ A}
+       → Value V
+       → Step M M'
+       → Step (V · M) (V · M')
+
+--  β-ƛ : ∀ {Γ A B} {N : Γ , A ⊢ B} {W : Γ ⊢ A}
+--       → Value W
 --       --------------------
 --       → Step ((ƛ N) · W) (N [ W ])
 --
