@@ -68,8 +68,8 @@ data _∋ₛ_ : Store → Id → Set where
 
 extM : (Id → Type) → Id → Type → (Id → Type)
 extM ℳ i T j with i ≟ j
-extM ℳ i T j | yes _ = ℳ i
-extM ℳ i T j | no _ = T
+extM ℳ i T j | yes _ = T
+extM ℳ i T j | no _ = ℳ j
 
 data _⊢_  where
   `_ : ∀ {Γ A}
@@ -262,6 +262,12 @@ data Value : ∀ {Γ A} → Γ ⊢ A → Set where
   V-suc  : ∀ {Γ} {V : Γ ⊢ `ℕ} → Value V → Value (`suc V)
   --V-cmd  : ∀ {Γ m} → Value Σ (cmd {Σ} {Γ} m)
 
+data Map : Set where
+  ∅     : Map
+  _⊗_↪_ : Map → Id → ∅ ⊢ `ℕ → Map
+
+data State (Γ : Context) (A : Type) : Set where
+  _∥_ : Γ ⊢ A → Map → State Γ A
 
 data Step : ∀ {Γ A} → Γ ⊢ A → Γ ⊢ A → Set where
   ξ-·₁ : ∀ {Γ A B} {L L' : Γ ⊢ A ⇒ B} {M : Γ ⊢ A}
@@ -303,10 +309,6 @@ data Step : ∀ {Γ A} → Γ ⊢ A → Γ ⊢ A → Set where
 --
 --_—→_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set
 --L —→ M = Step L M
---
---data Map : Store → Set where
---  ∅     : Map ∅
---  _⊗_↪_ : ∀ {Σ} → Map Σ → (x : Id) → Σ[ E ∈ (Σ , x) ⁏ ∅ ⊢ `ℕ ] Value (Σ , x) E → Map (Σ , x)
 --
 --_⊆_ : Store → Store → Set
 --Σ ⊆ Ω = ∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a
