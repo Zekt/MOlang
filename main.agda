@@ -1,5 +1,4 @@
 open import Relation.Binary.PropositionalEquality as Eq using (_≡_; _≢_; refl; cong; cong₂; sym) renaming (subst to subsT)
-open Eq.≡-Reasoning using (begin_; _≡⟨_⟩_; _≡⟨⟩_; _∎)
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
@@ -19,7 +18,6 @@ infix  4 _⊢_
 infix  5 _⊗_↪_
 infix  4 _∋_
 infix  4 _∋ₛ_
-infix  4 _∋ₘ_↪_
 infixl 5 _,_
 infixr 7 _⇒_
 infixl 7 _·_
@@ -265,11 +263,11 @@ data Value : ∀ {Γ A} → Γ ⊢ A → Set where
 
 data Map : Set where
   ∅     : Map
-  _⊗_↪_ : Map → Id → ({Γ : Context} → Γ ⊢ `ℕ) → Map
+  _⊗_↪_ : ∀ {Γ} → Map → Id → Γ ⊢ `ℕ → Map
 
-lookupₘ : Map → Id → ({Γ : Context} → Γ ⊢ `ℕ)
-lookupₘ (m ⊗ x ↪ V) y with x ≟ y
-... | yes _ = V
+lookupₘ : Map → Id → Σ[ Γ ∈ Context ] Γ ⊢ `ℕ
+lookupₘ (_⊗_↪_ {Γ} m x V) y with x ≟ y
+... | yes _ = ⟨ Γ , V ⟩
 ... | no  _ = lookupₘ m y
 lookupₘ ∅ _ = ⊥-elim impossible
   where postulate impossible : ⊥
@@ -341,15 +339,15 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
            → Step (bnd M N ∥ m) (bnd M' N ∥ m')
 
   β-get : ∀ {x Γ ℳ} {m : Map}
-        → Step (get {Γ} {ℳ} x ∥ m) (ret (lookupₘ m x) ∥ m)
+        → Step (get {Γ} {ℳ} x ∥ m) (ret {!!} ∥ m)
 
   ξ-set : ∀ {Γ ℳ x m m'} {E E' : Γ ⊢ `ℕ}
         → Step (E ∥ m) (E' ∥ m')
         → Step (set {Γ} {ℳ} x E ∥ m) (set x E' ∥ m')
 
-  β-setret : ∀ {x Γ ℳ} {μ : Map} {E : {Γ : Context} → Γ ⊢ `ℕ}
-           → Value {Γ} E
-           → Step (set {Γ} {ℳ} x E ∥ μ) (ret E ∥ (μ ⊗ x ↪ E))
+  β-setret : ∀ {x Γ ℳ m} {E : Γ ⊢ `ℕ}
+           → Value E
+           → Step (set {Γ} {ℳ} x E ∥ m) (ret E ∥ (m ⊗ x ↪ E))
 
   ξ-dcl₁ : ∀ {Γ ℳ x C} {E E' : Γ ⊢ `ℕ}
          → (∀ {m} → Step (E ∥ m) (E' ∥ m))
