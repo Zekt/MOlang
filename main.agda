@@ -365,11 +365,34 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
          → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x E' C ∥ m')
 
   ξ-dcl₂ : ∀ {Γ ℳ x C C'} {m m' : Map} {E : Γ ⊢ `ℕ}
-         → Step (C ∥ m) (C' ∥ m')
+         → (VE : Value E)
+         → Step (C ∥ m ⊗ x ↪ flex E VE) (C' ∥ m')
          → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x (subst (λ ()) (lookupₘ m' x)) C' ∥ m')
 
   β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
            → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
+
+weakenM : ∀ {m m' a E Γ A} {C C' : Γ ⊢ A}
+        → Step {Γ} {A} (C ∥ m) (C' ∥ m')
+        → Step (C ∥ m ⊗ a ↪ E) (C' ∥ m' ⊗ a ↪ E)
+weakenM (ξ-·₁ Π) = ξ-·₁ (weakenM Π)
+weakenM (ξ-·₂ x Π) = ξ-·₂ x (weakenM Π)
+weakenM (β-ƛ x) = β-ƛ x
+weakenM (ξ-suc Π) = ξ-suc (weakenM Π)
+weakenM (ξ-case Π) = ξ-case (weakenM Π)
+weakenM β-zero = β-zero
+weakenM (β-suc x) = β-suc x
+weakenM β-μ = β-μ
+weakenM (ξ-ret Π) = ξ-ret (weakenM Π)
+weakenM (ξ-bnd Π) = ξ-bnd (weakenM Π)
+weakenM (β-bndret x) = β-bndret x
+weakenM (ξ-bndcmd Π) = ξ-bndcmd (weakenM Π)
+weakenM β-get = {!β-get!}
+weakenM (ξ-set Π) = ξ-set (weakenM Π)
+weakenM (β-setret VE) = {!β-setret VE!}
+weakenM (ξ-dcl₁ Π) = {!!}
+weakenM (ξ-dcl₂ VE Π) = {!!}
+weakenM β-dclret = {!!}
 
 _—→_ : ∀ {Γ A} → State Γ A → State Γ A → Set
 L —→ M = Step L M
@@ -416,7 +439,7 @@ progress (bnd C₁ C₂) m with progress C₁ m
 progress (dcl a E C) m with progress E m
 ... | step E—→E'               = step (ξ-dcl₁ E—→E')
 ... | done (F-val VE) with progress C m
-...   | step C—→C'             = step (ξ-dcl₂ C—→C')
+...   | step C—→C'             = step (ξ-dcl₂ VE {!!})
 ...   | done (F-ret _)         = step β-dclret
 ...   | done (F-val (V-ret _)) = step β-dclret
 
