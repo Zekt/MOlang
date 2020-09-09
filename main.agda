@@ -353,11 +353,11 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
          → (∀ {m} → Step (E ∥ m) (E' ∥ m))
          → (∀ {m} → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x E' C ∥ m))
 
-  ξ-dcl₂ : ∀ {Γ ℳ x C C'} {m m' : Map} {E E' : {Γ : Context} → Γ ⊢ `ℕ}
+  ξ-dcl₂ : ∀ {Γ ℳ x C C'} {m m' : Map} {E E' : Γ ⊢ `ℕ}
          → Step (C ∥ m ⊗ x ↪ E) (C' ∥ m')
          → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x E' C' ∥ m')
 
-  β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : {Γ : Context} → Γ ⊢ `ℕ}
+  β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
            → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
 
 _—→_ : ∀ {Γ A} → State Γ A → State Γ A → Set
@@ -396,7 +396,7 @@ progress (dcl a M M₁) m = {!!}
 progress (get a) m = step β-get
 progress (set a E) m with progress E m
 progress (set a E) m | step E—→E′ = step (ξ-set E—→E′)
-progress (set a E) m | done (F-val VE) = step (β-setret {!!})
+progress (set a E) m | done (F-val VE) = step (β-setret VE)
 --progress (`zero) m                      = done (F-val V-zero)
 --progress (`suc M) m with progress M m
 --...    | step M—→M′                     = step (ξ-suc M—→M′)
