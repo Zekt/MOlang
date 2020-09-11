@@ -1,7 +1,8 @@
-open import Relation.Binary.PropositionalEquality as Eq using (_≡_; _≢_; refl; cong; cong₂; sym) renaming (subst to subsT)
+open import Relation.Binary.PropositionalEquality as Eq using (_≡_; _≢_; refl; cong; cong₂; sym; inspect)
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Unit using (⊤; tt)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Data.List using (List; _∷_; [])
 open import Data.List.NonEmpty using (List⁺; _∷⁺_)
@@ -262,26 +263,26 @@ data Value : ∀ {Γ A} → Γ ⊢ A → Set where
 
 data Map : Set where
   ∅     : Map
-  _⊗_↪_ : Map → Id → ∅ ⊢ `ℕ → Map
+  _⊗_↪_ : ∀ {E : ∅ ⊢ `ℕ} → Map → Id → Value E → Map
 
-data _∋ₘ_↪_ : Map → Id → ∅ ⊢ `ℕ → Set where
-  Z : ∀ {m a E}
-    → m ⊗ a ↪ E ∋ₘ a ↪ E
-  S : ∀ {m a E a' E'}
-    → m           ∋ₘ a ↪ E
-    → m ⊗ a' ↪ E' ∋ₘ a ↪ E
+data _∋ₘ_↪_ : ∀ {E} → Map → Id → Value {∅} {`ℕ} E → Set where
+  Z : ∀ {m a E} {VE : Value E}
+    → m ⊗ a ↪ VE ∋ₘ a ↪ VE
+  S : ∀ {m a E a' E'} {VE : Value E} {VE' : Value E'}
+    → m            ∋ₘ a ↪ VE
+    → m ⊗ a' ↪ VE' ∋ₘ a ↪ VE
 
-lookupₘ : Map → Id → ∅ ⊢ `ℕ
-lookupₘ (_⊗_↪_ m x V) y with x ≟ y
-... | yes _ = V
+lookupₘ : Map → Id → ∃[ E ] Value E
+lookupₘ (_⊗_↪_ m x VE) y with x ≟ y
+... | yes _ = ⟨ _ , VE ⟩
 ... | no  _ = lookupₘ m y
 lookupₘ ∅ _ = ⊥-elim impossible
   where postulate impossible : ⊥
-
-flex : ∀ {Γ Δ} → (E : Γ ⊢ `ℕ) → Value E → Δ ⊢ `ℕ
-flex `zero VE = `zero
-flex (`suc E) (V-suc VE) = `suc flex E VE
-
+--
+--flex : ∀ {Γ Δ} → (E : Γ ⊢ `ℕ) → Value E → Δ ⊢ `ℕ
+--flex `zero VE = `zero
+--flex (`suc E) (V-suc VE) = `suc flex E VE
+--
 data State (Γ : Context) (A : Type) : Set where
   _∥_ : Γ ⊢ A → Map → State Γ A
 
@@ -291,8 +292,19 @@ data Final : ∀ {Γ A} → State Γ A → Set where
   F-val : ∀ {Γ A} {V : Γ ⊢ A} {μ : Map}
         → Value V → Final (V ∥ μ)
 
-CxtEq : ∀ {Γ} → Γ ⊢ `ℕ → ∅ ⊢ `ℕ → Set
-CxtEq E E' = Σ[ VE ∈ Value E ] (flex E VE ≡ E')
+EqV : ∀ {Γ Δ E E'} → Value {Γ} {`ℕ} E → Value {Δ} {`ℕ} E' → Set
+EqV V-zero V-zero = ⊤
+EqV V-zero (V-suc VE') = ⊥
+EqV (V-suc VE) V-zero = ⊥
+EqV (V-suc VE) (V-suc VE') = EqV VE VE'
+
+EqV-eq : ∀ {Γ} {E : Γ ⊢ `ℕ} (VE : Value E) → EqV VE VE
+EqV-eq V-zero = tt
+EqV-eq (V-suc VE) = EqV-eq VE
+
+EqV-sym : ∀ {Γ Δ E E'} {VE : Value {Γ} E} {VE' : Value {Δ} E'} → EqV {Γ} {Δ} VE VE' → EqV VE' VE
+EqV-sym {VE = V-zero} {V-zero} VE=VE' = VE=VE'
+EqV-sym {VE = V-suc VE} {V-suc VE'} VE=VE' = EqV-sym {VE = VE} {VE' = VE'} VE=VE'
 
 --Steps with State
 data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set where
@@ -349,50 +361,55 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
            → Step (M ∥ m) (M' ∥ m')
            → Step (bnd M N ∥ m) (bnd M' N ∥ m')
 
-  β-get : ∀ {x Γ ℳ} {m : Map}
-        → Step (get {Γ} {ℳ} x ∥ m) (ret (subst (λ ()) (lookupₘ m x)) ∥ m)
+  β-get : ∀ {x Γ ℳ E m} {VE : Value E}
+        → EqV VE (proj₂ $ lookupₘ m x)
+        → Step (get {Γ} {ℳ} x ∥ m) (ret E ∥ m)
 
   ξ-set : ∀ {Γ ℳ x m m'} {E E' : Γ ⊢ `ℕ}
         → Step (E ∥ m) (E' ∥ m')
         → Step (set {Γ} {ℳ} x E ∥ m) (set x E' ∥ m')
 
-  β-setret : ∀ {x Γ ℳ m} {E : Γ ⊢ `ℕ}
+  β-setret : ∀ {x Γ ℳ m E E'} {VE' : Value E'}
            → (VE : Value E)
-           → Step (set {Γ} {ℳ} x E ∥ m) (ret E ∥ (m ⊗ x ↪ flex E VE))
+           → EqV VE VE'
+           → Step (set {Γ} {ℳ} x E ∥ m) (ret E ∥ (m ⊗ x ↪ VE'))
 
   ξ-dcl₁ : ∀ {Γ ℳ x C m m'} {E E' : Γ ⊢ `ℕ}
          → Step (E ∥ m) (E' ∥ m')
          → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x E' C ∥ m')
 
-  ξ-dcl₂ : ∀ {Γ ℳ x C C'} {m m' : Map} {E : Γ ⊢ `ℕ}
-         → (VE : Value E)
-         → Step (C ∥ m ⊗ x ↪ flex E VE) (C' ∥ m')
-         → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x (subst (λ ()) (lookupₘ m' x)) C' ∥ m')
+  ξ-dcl₂ : ∀ {Γ ℳ x C C' m m' E₁ E₂ E₁' E₂'}
+             {VE₁ : Value E₁} {VE₂ : Value E₂} {VE₁' : Value E₁'} {VE₂' : Value E₂'}
+         → EqV VE₁ VE₁'
+         → EqV VE₂ VE₂'
+         → Step (C ∥ m ⊗ x ↪ VE₁') (C' ∥ m' ⊗ x ↪ VE₂')
+         → Step (dcl {Γ} {ℳ} x E₁ C ∥ m) (dcl x E₂ C' ∥ m')
 
   β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
            → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
 
-weakenM : ∀ {m m' a E Γ A} {C C' : Γ ⊢ A}
+weakenM : ∀ {m m' Γ A a C C' E} {VE : Value E}
         → Step {Γ} {A} (C ∥ m) (C' ∥ m')
-        → Step (C ∥ m ⊗ a ↪ E) (C' ∥ m' ⊗ a ↪ E)
-weakenM (ξ-·₁ Π) = ξ-·₁ (weakenM Π)
-weakenM (ξ-·₂ x Π) = ξ-·₂ x (weakenM Π)
-weakenM (β-ƛ x) = β-ƛ x
-weakenM (ξ-suc Π) = ξ-suc (weakenM Π)
-weakenM (ξ-case Π) = ξ-case (weakenM Π)
-weakenM β-zero = β-zero
-weakenM (β-suc x) = β-suc x
-weakenM β-μ = β-μ
-weakenM (ξ-ret Π) = ξ-ret (weakenM Π)
-weakenM (ξ-bnd Π) = ξ-bnd (weakenM Π)
-weakenM (β-bndret x) = β-bndret x
-weakenM (ξ-bndcmd Π) = ξ-bndcmd (weakenM Π)
-weakenM β-get = {!β-get!}
-weakenM (ξ-set Π) = ξ-set (weakenM Π)
-weakenM (β-setret VE) = {!β-setret VE!}
-weakenM (ξ-dcl₁ Π) = {!!}
-weakenM (ξ-dcl₂ VE Π) = {!!}
-weakenM β-dclret = {!!}
+        → ∃[ C'' ] ∃[ VE' ] Step (C ∥ m ⊗ a ↪ VE) (C'' ∥ m' ⊗ a ↪ VE')
+--weakenM (ξ-·₁ Π) = ⟨ {!!} , {!!} ⟩
+--weakenM (ξ-·₂ x Π) = {!!}
+--weakenM (β-ƛ x) = {!!}
+--weakenM (ξ-suc Π) = {!!}
+--weakenM (ξ-case Π) = {!!}
+--weakenM β-zero = {!!}
+--weakenM (β-suc x) = {!!}
+--weakenM β-μ = {!!}
+--weakenM (ξ-ret Π) = {!!}
+--weakenM (ξ-bnd Π) = {!!}
+--weakenM (β-bndret x) = {!!}
+--weakenM (ξ-bndcmd Π) = {!!}
+--weakenM β-get = ⟨ _ , β-get ⟩
+--weakenM (ξ-set Π) = {!!}
+--weakenM (β-setret VE) = ⟨ {!!} , β-setret VE ⟩
+--weakenM (ξ-dcl₁ Π) = {!!}
+--weakenM (ξ-dcl₂ VE Π) with weakenM Π
+--... | ⟨ _ ∥ _ , S' ⟩ = ⟨ {!!} , ξ-dcl₂ VE {!S'!} ⟩
+--weakenM β-dclret = {!!}
 
 _—→_ : ∀ {Γ A} → State Γ A → State Γ A → Set
 L —→ M = Step L M
@@ -439,15 +456,19 @@ progress (bnd C₁ C₂) m with progress C₁ m
 progress (dcl a E C) m with progress E m
 ... | step E—→E'               = step (ξ-dcl₁ E—→E')
 ... | done (F-val VE) with progress C m
-...   | step C—→C'             = step (ξ-dcl₂ VE {!!})
 ...   | done (F-ret _)         = step β-dclret
 ...   | done (F-val (V-ret _)) = step β-dclret
+...   | step {m' = m'} C—→C' with lookupₘ m a | inspect (lookupₘ m) a | lookupₘ m' a | inspect (lookupₘ m') a | weakenM C—→C'
+...     | ⟨ E' , VE' ⟩ | Eq.[ eq ] | ⟨ E₂ , VE₂ ⟩ | Eq.[ eq' ] | ⟨ _ , ⟨ _ , St ⟩ ⟩
+          = step (ξ-dcl₂ {VE₁ = {!!}} {VE₂ = {!!}} {!!} {!!} St)
+-- step (ξ-dcl₂ {VE₁ = {!!}} {!!} {!!} C—→C')
 
-progress (get a) m = step β-get
+progress (get a) m = let ⟨ E , VE ⟩ = lookupₘ m a
+                      in step (β-get {VE = VE} (EqV-eq VE))
 
 progress (set a E) m with progress E m
 ... | step E—→E′      = step (ξ-set E—→E′)
-... | done (F-val VE) = step (β-setret VE)
+... | done (F-val VE) = step (β-setret {VE' = VE} VE (EqV-eq VE))
 
 --infix  2 _—↠_ _—↣_
 --infix  1 start_
