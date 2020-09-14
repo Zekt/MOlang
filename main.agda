@@ -298,6 +298,11 @@ EqV V-zero (V-suc VE') = ⊥
 EqV (V-suc VE) V-zero = ⊥
 EqV (V-suc VE) (V-suc VE') = EqV VE VE'
 
+extV : ∀ {Γ} {E : ∅ ⊢ `ℕ} → (VE : Value E) → ∃[ E' ] (Σ[ VE' ∈ Value {Γ} {`ℕ} E' ] EqV VE' VE)
+extV {E = .`zero} V-zero = ⟨ `zero , ⟨ V-zero , tt ⟩ ⟩
+extV {E = `suc E} (V-suc VE) with extV {E = E} VE
+... | ⟨ E' , ⟨ VE' , eqv ⟩ ⟩ = ⟨ `suc E' , ⟨ V-suc VE' , eqv ⟩ ⟩
+
 EqV-eq : ∀ {Γ} {E : Γ ⊢ `ℕ} (VE : Value E) → EqV VE VE
 EqV-eq V-zero = tt
 EqV-eq (V-suc VE) = EqV-eq VE
@@ -305,6 +310,10 @@ EqV-eq (V-suc VE) = EqV-eq VE
 EqV-sym : ∀ {Γ Δ E E'} {VE : Value {Γ} E} {VE' : Value {Δ} E'} → EqV {Γ} {Δ} VE VE' → EqV VE' VE
 EqV-sym {VE = V-zero} {V-zero} VE=VE' = VE=VE'
 EqV-sym {VE = V-suc VE} {V-suc VE'} VE=VE' = EqV-sym {VE = VE} {VE' = VE'} VE=VE'
+
+remove : ∀ {E} {VE : Value E} → (m : Map) → (a : Id) → m ∋ₘ a ↪ VE → Map
+remove (m ⊗ a ↪ _) a Z = m
+remove (m ⊗ _ ↪ _) a (S ∋ₘa) = remove m a ∋ₘa
 
 --Steps with State
 data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set where
@@ -361,8 +370,10 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
            → Step (M ∥ m) (M' ∥ m')
            → Step (bnd M N ∥ m) (bnd M' N ∥ m')
 
-  β-get : ∀ {x Γ ℳ E m} {VE : Value E}
-        → EqV VE (proj₂ $ lookupₘ m x)
+  β-get : ∀ {x Γ ℳ E E' m} {VE : Value E} {VE' : Value E'}
+        --→ EqV VE (proj₂ $ lookupₘ m x)
+        → EqV VE VE'
+        → m ∋ₘ x ↪ VE'
         → Step (get {Γ} {ℳ} x ∥ m) (ret E ∥ m)
 
   ξ-set : ∀ {Γ ℳ x m m'} {E E' : Γ ⊢ `ℕ}
@@ -382,34 +393,50 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
              {VE₁ : Value E₁} {VE₂ : Value E₂} {VE₁' : Value E₁'} {VE₂' : Value E₂'}
          → EqV VE₁ VE₁'
          → EqV VE₂ VE₂'
-         → Step (C ∥ m ⊗ x ↪ VE₁') (C' ∥ m' ⊗ x ↪ VE₂')
-         → Step (dcl {Γ} {ℳ} x E₁ C ∥ m) (dcl x E₂ C' ∥ m')
+         → (∋ₘx : m' ∋ₘ x ↪ VE₂')
+         → Step (C ∥ m ⊗ x ↪ VE₁') (C' ∥ m')
+         → Step (dcl {Γ} {ℳ} x E₁ C ∥ m) (dcl x E₂ C' ∥ remove m' x ∋ₘx)
 
   β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
            → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
 
+--weaken-trivial : ∀ {m a E Γ A C' C''} {L₁ L₁' m₁ m₁' L₂ L₂' m₂ m₂'} {C D : Γ ⊢ A} {VE : Value E}
+--               → ∃[ m'  ] ∃[ E'  ] (Σ[ VE'  ∈ Value E'  ] (m'  ∋ₘ a ↪ VE'  × Step (C ∥ m ⊗ a ↪ VE) (C'  ∥ m')))
+--               → (Step (L₁ ∥ m₁) (L₁' ∥ m₁') → Step (L₂ ∥ m₂) (L₂' ∥ m₂'))
+--               → ∃[ m'' ] ∃[ E'' ] (Σ[ VE'' ∈ Value E'' ] (m'' ∋ₘ a ↪ VE'' × Step (D ∥ m ⊗ a ↪ VE) (C'' ∥ m'')))
+--weaken-trivial ⟨ m' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ gen = ⟨ _ , ⟨ _ , ⟨ VE' , ⟨ ∋ₘa , {!!} ⟩ ⟩ ⟩ ⟩
+
 weakenM : ∀ {m m' Γ A a C C' E} {VE : Value E}
         → Step {Γ} {A} (C ∥ m) (C' ∥ m')
-        → ∃[ C'' ] ∃[ VE' ] Step (C ∥ m ⊗ a ↪ VE) (C'' ∥ m' ⊗ a ↪ VE')
---weakenM (ξ-·₁ Π) = ⟨ {!!} , {!!} ⟩
---weakenM (ξ-·₂ x Π) = {!!}
---weakenM (β-ƛ x) = {!!}
---weakenM (ξ-suc Π) = {!!}
---weakenM (ξ-case Π) = {!!}
---weakenM β-zero = {!!}
---weakenM (β-suc x) = {!!}
---weakenM β-μ = {!!}
---weakenM (ξ-ret Π) = {!!}
---weakenM (ξ-bnd Π) = {!!}
---weakenM (β-bndret x) = {!!}
---weakenM (ξ-bndcmd Π) = {!!}
---weakenM β-get = ⟨ _ , β-get ⟩
---weakenM (ξ-set Π) = {!!}
---weakenM (β-setret VE) = ⟨ {!!} , β-setret VE ⟩
---weakenM (ξ-dcl₁ Π) = {!!}
---weakenM (ξ-dcl₂ VE Π) with weakenM Π
---... | ⟨ _ ∥ _ , S' ⟩ = ⟨ {!!} , ξ-dcl₂ VE {!S'!} ⟩
---weakenM β-dclret = {!!}
+        → ∃[ C'' ] ∃[ m'' ] ∃[ E' ] (Σ[ VE' ∈ Value E' ] (m'' ∋ₘ a ↪ VE' × Step (C ∥ m ⊗ a ↪ VE) (C'' ∥ m'')))
+weakenM (ξ-·₁ Π) with weakenM Π
+... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-·₁ Π' ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (ξ-·₂ VV Π) with weakenM Π
+... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-·₂ VV Π' ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (β-ƛ x) = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , (β-ƛ x) ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (ξ-suc Π) with weakenM Π
+... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-suc Π' ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (ξ-case Π) with weakenM Π
+... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-case Π' ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM β-zero = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-zero ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (β-suc x) = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-suc x ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM β-μ = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-μ ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (ξ-ret Π) with weakenM Π
+... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-ret Π' ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (ξ-bnd Π) with weakenM Π
+... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-bnd Π' ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (β-bndret x) = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-bndret x ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (ξ-bndcmd Π) with weakenM Π
+... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-bndcmd Π' ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM {Γ = Γ} {a = a} {VE = VE'} (β-get {x = x} {VE = VE} eqv ∋ₘx) with a ≟ x
+... | no _  = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-get {VE = VE} eqv (S ∋ₘx) ⟩ ⟩ ⟩ ⟩ ⟩
+... | yes refl with extV VE'
+...   | ⟨ E? , ⟨ VE? , eq ⟩ ⟩ = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ VE' , ⟨ Z , β-get {VE = VE?} eq Z ⟩ ⟩ ⟩ ⟩ ⟩
+weakenM (ξ-set Π) = {!!}
+weakenM (β-setret VE eqv) = {!!}
+weakenM (ξ-dcl₁ Π) = {!!}
+weakenM (ξ-dcl₂ eqv₁ eqv₂ ∋ₘx Π) = {!!}
+weakenM β-dclret = {!!}
 
 _—→_ : ∀ {Γ A} → State Γ A → State Γ A → Set
 L —→ M = Step L M
@@ -458,13 +485,13 @@ progress (dcl a E C) m with progress E m
 ... | done (F-val VE) with progress C m
 ...   | done (F-ret _)         = step β-dclret
 ...   | done (F-val (V-ret _)) = step β-dclret
-...   | step {m' = m'} C—→C' with lookupₘ m a | inspect (lookupₘ m) a | lookupₘ m' a | inspect (lookupₘ m') a | weakenM C—→C'
-...     | ⟨ E' , VE' ⟩ | Eq.[ eq ] | ⟨ E₂ , VE₂ ⟩ | Eq.[ eq' ] | ⟨ _ , ⟨ _ , St ⟩ ⟩
-          = step (ξ-dcl₂ {VE₁ = {!!}} {VE₂ = {!!}} {!!} {!!} St)
+...   | step {m' = m'} C—→C' with weakenM {a = a} {VE = VE} C—→C'
+...     | ⟨ _ , ⟨ _ , ⟨ _ , ⟨ VE₂ , ⟨ ∋ₘa , stp ⟩ ⟩ ⟩ ⟩ ⟩
+          = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE₂} (EqV-eq VE) (EqV-eq VE₂) ∋ₘa stp)
 -- step (ξ-dcl₂ {VE₁ = {!!}} {!!} {!!} C—→C')
 
-progress (get a) m = let ⟨ E , VE ⟩ = lookupₘ m a
-                      in step (β-get {VE = VE} (EqV-eq VE))
+progress (get a) m = {!!} --let ⟨ E , VE ⟩ = lookupₘ m a
+                      --in step (β-get {VE = VE} (EqV-eq VE))
 
 progress (set a E) m with progress E m
 ... | step E—→E′      = step (ξ-set E—→E′)
