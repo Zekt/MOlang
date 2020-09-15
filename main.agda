@@ -6,7 +6,7 @@ open import Data.Unit using (⊤; tt)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Data.List using (List; _∷_; [])
 open import Data.List.NonEmpty using (List⁺; _∷⁺_)
-open import Data.Product using (_×_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Data.Product using (_×_; _,_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂)
 open import Function using (id; _$_; _∘_)
 --open import Category.Monad.State
 --open import Level
@@ -20,7 +20,7 @@ infix  5 _⊗_↪_
 infix  4 _∋_
 infix  4 _∋ₘ_↪_
 infix  4 _∋ₛ_
-infixl 5 _,_
+infixl 5 _▷_
 infixr 7 _⇒_
 infixl 7 _·_
 infix  8 `suc_
@@ -41,7 +41,7 @@ data _⊢_ : Context → Type → Set
 
 data Context where
   ∅   : Context
-  _,_ : Context → Type → Context
+  _▷_ : Context → Type → Context
 
 data Type where
   _⇒_  : Type → Type → Type
@@ -52,18 +52,18 @@ data Type where
 data _∋_ : Context → Type → Set where
 
   Z : ∀ {Γ A}
-    → Γ , A ∋ A
+    → Γ ▷ A ∋ A
 
   S : ∀ {Γ A B}
-    → Γ ∋ A → Γ , B ∋ A
+    → Γ ∋ A → Γ ▷ B ∋ A
 
 data Store : Set where
   ∅   : Store
-  _,_ : Store → Id → Store
+  _▷_ : Store → Id → Store
 
 data _∋ₛ_ : Store → Id → Set where
-  Z : ∀ {Σ a}            → Σ , a ∋ₛ a
-  S : ∀ {Σ a b} → Σ ∋ₛ a → Σ , b ∋ₛ a
+  Z : ∀ {Σ a}            → Σ ▷ a ∋ₛ a
+  S : ∀ {Σ a b} → Σ ∋ₛ a → Σ ▷ b ∋ₛ a
 
 extM : (Id → Type) → Id → Type → (Id → Type)
 extM ℳ i T j with i ≟ j
@@ -77,7 +77,7 @@ data _⊢_  where
      → Γ ⊢ A
 
   ƛ : ∀ {Γ A B}
-     → Γ , A ⊢ B
+     → Γ ▷ A ⊢ B
      --------------------
      → Γ ⊢ A ⇒ B
   -- ⇒-E
@@ -96,12 +96,12 @@ data _⊢_  where
         → Γ ⊢ `ℕ
   -- ℕ-E
   case : ∀ {Γ A}
-       → Γ ⊢ `ℕ   → Γ ⊢ A   → Γ , `ℕ ⊢ A
+       → Γ ⊢ `ℕ   → Γ ⊢ A   → Γ ▷ `ℕ ⊢ A
        ------------------------------------------
        → Γ ⊢ A
 
   μ_ : ∀ {Γ A}
-     → Γ , A ⊢ A
+     → Γ ▷ A ⊢ A
      -------------
      → Γ ⊢ A
 
@@ -110,7 +110,7 @@ data _⊢_  where
      → Γ ⊢ `Cmd ℳ `ℕ
 
   bnd : ∀ {Γ ℳ}
-      → Γ ⊢ `Cmd ℳ `ℕ → Γ , `ℕ ⊢ `Cmd ℳ `ℕ
+      → Γ ⊢ `Cmd ℳ `ℕ → Γ ▷ `ℕ ⊢ `Cmd ℳ `ℕ
       → Γ ⊢ `Cmd ℳ `ℕ
 
   dcl : ∀ {Γ ℳ}
@@ -135,14 +135,14 @@ data _⊢_  where
 --        → Σ ⁏ Γ ⊩ ok
 
 lookup : Context → ℕ → Type
-lookup (Γ , A) zero    = A
-lookup (Γ , _) (suc n) = lookup Γ n
+lookup (Γ ▷ A) zero    = A
+lookup (Γ ▷ _) (suc n) = lookup Γ n
 lookup ∅       _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
 count : ∀ {Γ} → (n : ℕ) → Γ ∋ lookup Γ n
-count {Γ , _} zero    = Z
-count {Γ , _} (suc n) = S (count n)
+count {Γ ▷ _} zero    = Z
+count {Γ ▷ _} (suc n) = S (count n)
 count {∅}     _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
@@ -153,7 +153,7 @@ count {∅}     _       = ⊥-elim impossible
 ext : ∀ {Γ Δ}
     → (∀ {A}   → Γ ∋ A     → Δ ∋ A)
     -----------------------------------
-    → (∀ {A B} → Γ , B ∋ A → Δ , B ∋ A)
+    → (∀ {A B} → Γ ▷ B ∋ A → Δ ▷ B ∋ A)
 ext ρ Z     = Z
 ext ρ (S x) = S (ρ x)
 
@@ -196,7 +196,7 @@ rename ρ (set a N)    = set a (rename ρ N)
 --
 exts : ∀ {Γ Δ}
      → (∀ {A}   →     Γ ∋ A → Δ ⊢ A)
-     → (∀ {A B} → Γ , B ∋ A → Δ , B ⊢ A)
+     → (∀ {A B} → Γ ▷ B ∋ A → Δ ▷ B ⊢ A)
 exts ρ Z     = ` Z
 exts ρ (S x) = rename S (ρ x)
 --
@@ -237,12 +237,12 @@ subst σ (set a N)    = set a (subst σ N)
 --
 --
 _[_] : ∀ {Γ A B}
-     → Γ , B ⊢ A → Γ ⊢ B
+     → Γ ▷ B ⊢ A → Γ ⊢ B
      -------------------
      → Γ ⊢ A
-_[_] {Γ} {A} {B} N M = subst {Γ , B} {Γ} σ N
+_[_] {Γ} {A} {B} N M = subst {Γ ▷ B} {Γ} σ N
   where
-    σ : ∀ {A} → Γ , B ∋ A → Γ ⊢ A
+    σ : ∀ {A} → Γ ▷ B ∋ A → Γ ⊢ A
     σ Z     = M
     σ (S x) = ` x
 --
@@ -256,7 +256,7 @@ _[_] {Γ} {A} {B} N M = subst {Γ , B} {Γ} σ N
 --    σ (S x) = ` x
 --
 data Value : ∀ {Γ A} → Γ ⊢ A → Set where
-  V-ƛ    : ∀ {Γ A B} {N : Γ , A ⊢ B} → Value (ƛ N)
+  V-ƛ    : ∀ {Γ A B} {N : Γ ▷ A ⊢ B} → Value (ƛ N)
   V-zero : ∀ {Γ} → Value (`zero {Γ})
   V-suc  : ∀ {Γ} {V : Γ ⊢ `ℕ} → Value V → Value (`suc V)
   V-ret  : ∀ {Γ ℳ} {V : Γ ⊢ `ℕ} → Value V → Value (ret {Γ} {ℳ} V)
@@ -274,7 +274,7 @@ data _∋ₘ_↪_ : ∀ {E} → Map → Id → Value {∅} {`ℕ} E → Set wher
 
 lookupₘ : Map → Id → ∃[ E ] Value E
 lookupₘ (_⊗_↪_ m x VE) y with x ≟ y
-... | yes _ = ⟨ _ , VE ⟩
+... | yes _ = _ , VE
 ... | no  _ = lookupₘ m y
 lookupₘ ∅ _ = ⊥-elim impossible
   where postulate impossible : ⊥
@@ -299,9 +299,9 @@ EqV (V-suc VE) V-zero = ⊥
 EqV (V-suc VE) (V-suc VE') = EqV VE VE'
 
 extV : ∀ {Γ} {E : ∅ ⊢ `ℕ} → (VE : Value E) → ∃[ E' ] (Σ[ VE' ∈ Value {Γ} {`ℕ} E' ] EqV VE' VE)
-extV {E = .`zero} V-zero = ⟨ `zero , ⟨ V-zero , tt ⟩ ⟩
+extV {E = .`zero} V-zero = `zero , V-zero , tt
 extV {E = `suc E} (V-suc VE) with extV {E = E} VE
-... | ⟨ E' , ⟨ VE' , eqv ⟩ ⟩ = ⟨ `suc E' , ⟨ V-suc VE' , eqv ⟩ ⟩
+... | E' , VE' , eqv = `suc E' , V-suc VE' , eqv
 
 EqV-eq : ∀ {Γ} {E : Γ ⊢ `ℕ} (VE : Value E) → EqV VE VE
 EqV-eq V-zero = tt
@@ -326,7 +326,7 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
        → Step (M ∥ m) (M' ∥ m')
        → Step (V · M ∥ m) (V · M' ∥ m')
 
-  β-ƛ : ∀ {Γ A B} {N : Γ , A ⊢ B} {W : Γ ⊢ A}
+  β-ƛ : ∀ {Γ A B} {N : Γ ▷ A ⊢ B} {W : Γ ⊢ A}
       → Value W
       --------------------
       → (∀ {m} → Step ((ƛ N) · W ∥ m) (N [ W ] ∥ m))
@@ -336,21 +336,21 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
         -----------------
         → Step (`suc M ∥ m) (`suc M′ ∥ m')
 
-  ξ-case : ∀ {Γ A m m'} {L L′ : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+  ξ-case : ∀ {Γ A m m'} {L L′ : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ ▷ `ℕ ⊢ A}
          → Step (L ∥ m) (L′ ∥ m')
          -------------------------
          → Step (case L M N ∥ m) (case L′ M N ∥ m')
 
-  β-zero :  ∀ {Γ A m} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+  β-zero :  ∀ {Γ A m} {M : Γ ⊢ A} {N : Γ ▷ `ℕ ⊢ A}
          -------------------
          → Step (case `zero M N ∥ m) (M ∥ m)
 
-  β-suc : ∀ {Γ A m} {V : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ , `ℕ ⊢ A}
+  β-suc : ∀ {Γ A m} {V : Γ ⊢ `ℕ} {M : Γ ⊢ A} {N : Γ ▷ `ℕ ⊢ A}
         → Value V
         ----------------------------
         → Step (case (`suc V) M N ∥ m) (N [ V ] ∥ m)
 
-  β-μ : ∀ {Γ A m} {N : Γ , A ⊢ A}
+  β-μ : ∀ {Γ A m} {N : Γ ▷ A ⊢ A}
       ----------------
       → Step (μ N ∥ m) (N [ μ N ] ∥ m)
 
@@ -400,43 +400,73 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
   β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
            → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
 
---weaken-trivial : ∀ {m a E Γ A C' C''} {L₁ L₁' m₁ m₁' L₂ L₂' m₂ m₂'} {C D : Γ ⊢ A} {VE : Value E}
---               → ∃[ m'  ] ∃[ E'  ] (Σ[ VE'  ∈ Value E'  ] (m'  ∋ₘ a ↪ VE'  × Step (C ∥ m ⊗ a ↪ VE) (C'  ∥ m')))
---               → (Step (L₁ ∥ m₁) (L₁' ∥ m₁') → Step (L₂ ∥ m₂) (L₂' ∥ m₂'))
---               → ∃[ m'' ] ∃[ E'' ] (Σ[ VE'' ∈ Value E'' ] (m'' ∋ₘ a ↪ VE'' × Step (D ∥ m ⊗ a ↪ VE) (C'' ∥ m'')))
---weaken-trivial ⟨ m' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ gen = ⟨ _ , ⟨ _ , ⟨ VE' , ⟨ ∋ₘa , {!!} ⟩ ⟩ ⟩ ⟩
+swapM : ∀ {Γ A C C' m m' x y E₁ E₂} {VE₁ : Value E₁} {VE₂ : Value E₂}
+      → Step {Γ} {A} (C ∥ (m ⊗ x ↪ VE₁) ⊗ y ↪ VE₂) (C' ∥ m')
+      → ∃[ C'' ] ∃[ m'' ] Step (C ∥ (m ⊗ y ↪ VE₂) ⊗ x ↪ VE₁) (C'' ∥ m'')
+swapM (ξ-·₁ Π) = _ , _ , (ξ-·₁ $ proj₂ $ proj₂ $ swapM Π)
+swapM (ξ-·₂ x Π) = _ , _ , (ξ-·₂ x $ proj₂ $ proj₂ $ swapM Π)
+swapM (β-ƛ x) = _ , _ , β-ƛ x
+swapM (ξ-suc Π) = _ , _ , ξ-suc (proj₂ $ proj₂ $ swapM Π)
+swapM (ξ-case Π) = _ , _ , ξ-case (proj₂ $ proj₂ $ swapM Π)
+swapM β-zero = _ , _ , β-zero
+swapM (β-suc x) = _ , _ , β-suc x
+swapM β-μ = _ , _ , β-μ
+swapM (ξ-ret Π) = _ , _ , ξ-ret (proj₂ $ proj₂ $ swapM Π)
+swapM (ξ-bnd Π) = _ , _ , ξ-bnd (proj₂ $ proj₂ $ swapM Π)
+swapM (β-bndret x) = _ , _ , β-bndret x
+swapM (ξ-bndcmd Π) = _ , _ , ξ-bndcmd (proj₂ $ proj₂ $ swapM Π)
+
+swapM {x = x} {y = y} {VE₁ = VE₁} {VE₂ = VE₂} (β-get {x = x'} eqv ∋ₘx) with x ≟ x' | y ≟ x' | extV VE₁ | extV VE₂
+... | _ | yes refl    | _ | E' , VE' , eqv' = _ , _ , β-get {VE = VE'} eqv' (S Z)
+... | yes refl | no _ | E' , VE' , eqv' | _ = _ , _ , β-get {VE = VE'} eqv' Z
+swapM {x = x} {.x'} (β-get {x'} eqv Z)                     | no _  | no ¬p | _ | _ = ⊥-elim (¬p refl)
+swapM {x = x} {y}   (β-get {.x} eqv (S Z))                 | no ¬p | no _  | _ | _ = ⊥-elim (¬p refl)
+swapM {x = x} {y}   (β-get {x'} {VE = VE} eqv (S (S ∋ₘx))) | no _  | no _  | _ | _ = _ , _ , β-get {VE = VE} eqv (S (S ∋ₘx))
+
+swapM (ξ-set Π) = _ , _ , ξ-set (proj₂ $ proj₂ $ swapM Π)
+swapM (β-setret VE eqv) = _ , _ , β-setret VE eqv
+swapM (ξ-dcl₁ Π) = _ , _ , ξ-dcl₁ (proj₂ $ proj₂ $ swapM Π)
+swapM (ξ-dcl₂ eqv₁ eqv₂ ∋ₘx Π) = _ , _ , ξ-dcl₂ {!!} {!!} {!!} {!!}
+swapM β-dclret = _ , _ , β-dclret
 
 weakenM : ∀ {m m' Γ A a C C' E} {VE : Value E}
         → Step {Γ} {A} (C ∥ m) (C' ∥ m')
         → ∃[ C'' ] ∃[ m'' ] ∃[ E' ] (Σ[ VE' ∈ Value E' ] (m'' ∋ₘ a ↪ VE' × Step (C ∥ m ⊗ a ↪ VE) (C'' ∥ m'')))
+
 weakenM (ξ-·₁ Π) with weakenM Π
-... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-·₁ Π' ⟩ ⟩ ⟩ ⟩ ⟩
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-·₁ Π'
+
 weakenM (ξ-·₂ VV Π) with weakenM Π
-... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-·₂ VV Π' ⟩ ⟩ ⟩ ⟩ ⟩
-weakenM (β-ƛ x) = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , (β-ƛ x) ⟩ ⟩ ⟩ ⟩ ⟩
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-·₂ VV Π'
+
+weakenM (β-ƛ x) = _ , _ , _ , _ , Z , (β-ƛ x)
 weakenM (ξ-suc Π) with weakenM Π
-... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-suc Π' ⟩ ⟩ ⟩ ⟩ ⟩
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-suc Π'
 weakenM (ξ-case Π) with weakenM Π
-... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-case Π' ⟩ ⟩ ⟩ ⟩ ⟩
-weakenM β-zero = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-zero ⟩ ⟩ ⟩ ⟩ ⟩
-weakenM (β-suc x) = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-suc x ⟩ ⟩ ⟩ ⟩ ⟩
-weakenM β-μ = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-μ ⟩ ⟩ ⟩ ⟩ ⟩
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-case Π'
+weakenM β-zero = _ , _ , _ , _ , Z , β-zero
+weakenM (β-suc x) = _ , _ , _ , _ , Z , β-suc x
+weakenM β-μ = _ , _ , _ , _ , Z , β-μ
 weakenM (ξ-ret Π) with weakenM Π
-... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-ret Π' ⟩ ⟩ ⟩ ⟩ ⟩
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-ret Π'
 weakenM (ξ-bnd Π) with weakenM Π
-... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-bnd Π' ⟩ ⟩ ⟩ ⟩ ⟩
-weakenM (β-bndret x) = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-bndret x ⟩ ⟩ ⟩ ⟩ ⟩
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-bnd Π'
+weakenM (β-bndret x) = _ , _ , _ , _ , Z , β-bndret x
 weakenM (ξ-bndcmd Π) with weakenM Π
-... | ⟨ C'' , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , Π' ⟩ ⟩ ⟩ ⟩ ⟩ = ⟨ _ , ⟨ m'' , ⟨ E' , ⟨ VE' , ⟨ ∋ₘa , ξ-bndcmd Π' ⟩ ⟩ ⟩ ⟩ ⟩
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-bndcmd Π'
 weakenM {Γ = Γ} {a = a} {VE = VE'} (β-get {x = x} {VE = VE} eqv ∋ₘx) with a ≟ x
-... | no _  = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ _ , ⟨ Z , β-get {VE = VE} eqv (S ∋ₘx) ⟩ ⟩ ⟩ ⟩ ⟩
+... | no _  = _ , _ , _ , _ , Z , β-get {VE = VE} eqv (S ∋ₘx)
 ... | yes refl with extV VE'
-...   | ⟨ E? , ⟨ VE? , eq ⟩ ⟩ = ⟨ _ , ⟨ _ , ⟨ _ , ⟨ VE' , ⟨ Z , β-get {VE = VE?} eq Z ⟩ ⟩ ⟩ ⟩ ⟩
-weakenM (ξ-set Π) = {!!}
-weakenM (β-setret VE eqv) = {!!}
-weakenM (ξ-dcl₁ Π) = {!!}
-weakenM (ξ-dcl₂ eqv₁ eqv₂ ∋ₘx Π) = {!!}
-weakenM β-dclret = {!!}
+...   | E? , VE? , eq = _ , _ , _ , VE' , Z , β-get {VE = VE?} eq Z
+weakenM (ξ-set Π) with weakenM Π
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-set Π'
+weakenM (β-setret VE eqv) =  _ , _ , _ , _ , S Z , β-setret VE eqv
+weakenM (ξ-dcl₁ Π) with weakenM Π
+... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-dcl₁ Π'
+weakenM {a = a} {VE = VE} (ξ-dcl₂ {x = x} eqv₁ eqv₂ ∋ₘx Π) with weakenM Π | a ≟ x
+... | C'' , m'' , E' , VE' , ∋ₘa , Π' | no _     = _ , {!!} , {!!} , {!!} , {!Z!} , ξ-dcl₂ {!!} {!!} {!!} (proj₂ $ proj₂ $ swapM Π')
+... | C'' , m'' , E' , VE' , ∋ₘa , Π' | yes refl = _ , {!!} , {!!} , {!!} , {!!} , ξ-dcl₂ {!!} {!!} {!!} (proj₂ $ proj₂ $ swapM Π')
+weakenM β-dclret = _ , _ , _ , _ , Z , β-dclret
 
 _—→_ : ∀ {Γ A} → State Γ A → State Γ A → Set
 L —→ M = Step L M
@@ -486,7 +516,7 @@ progress (dcl a E C) m with progress E m
 ...   | done (F-ret _)         = step β-dclret
 ...   | done (F-val (V-ret _)) = step β-dclret
 ...   | step {m' = m'} C—→C' with weakenM {a = a} {VE = VE} C—→C'
-...     | ⟨ _ , ⟨ _ , ⟨ _ , ⟨ VE₂ , ⟨ ∋ₘa , stp ⟩ ⟩ ⟩ ⟩ ⟩
+...     | _ , _ , _ , VE₂ , ∋ₘa , stp
           = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE₂} (EqV-eq VE) (EqV-eq VE₂) ∋ₘa stp)
 -- step (ξ-dcl₂ {VE₁ = {!!}} {!!} {!!} C—→C')
 
