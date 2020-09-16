@@ -272,10 +272,11 @@ data _∋ₘ_↪_ : ∀ {E} → Map → Id → Value {∅} {`ℕ} E → Set wher
     → m            ∋ₘ a ↪ VE
     → m ⊗ a' ↪ VE' ∋ₘ a ↪ VE
 
-lookupₘ : Map → Id → ∃[ E ] Value E
+lookupₘ : (m : Map) → (x : Id) → ∃[ E ] (Σ[ VE ∈ Value E ] m ∋ₘ x ↪ VE)
 lookupₘ (_⊗_↪_ m x VE) y with x ≟ y
-... | yes _ = _ , VE
-... | no  _ = lookupₘ m y
+... | yes refl = _ , VE , Z
+... | no _ with lookupₘ m y
+...   | _ , VE' , ∋ₘy = _ , VE' , S ∋ₘy
 lookupₘ ∅ _ = ⊥-elim impossible
   where postulate impossible : ⊥
 --
@@ -314,6 +315,10 @@ EqV-sym {VE = V-suc VE} {V-suc VE'} VE=VE' = EqV-sym {VE = VE} {VE' = VE'} VE=VE
 remove : ∀ {E} {VE : Value E} → (m : Map) → (a : Id) → m ∋ₘ a ↪ VE → Map
 remove (m ⊗ a ↪ _) a Z = m
 remove (m ⊗ _ ↪ _) a (S ∋ₘa) = remove m a ∋ₘa
+
+data Remove {E} (a : Id) (VE : Value E) : Map → Map → Set where
+  Z : ∀ {m} → Remove a VE (m ⊗ a ↪ VE) m
+  S : ∀ {m m'} → Remove a VE m m' → Remove a VE (m ⊗ a ↪ VE) (m' ⊗ a ↪ VE)
 
 --Steps with State
 data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set where
@@ -400,73 +405,106 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
   β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
            → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
 
-swapM : ∀ {Γ A C C' m m' x y E₁ E₂} {VE₁ : Value E₁} {VE₂ : Value E₂}
-      → Step {Γ} {A} (C ∥ (m ⊗ x ↪ VE₁) ⊗ y ↪ VE₂) (C' ∥ m')
-      → ∃[ C'' ] ∃[ m'' ] Step (C ∥ (m ⊗ y ↪ VE₂) ⊗ x ↪ VE₁) (C'' ∥ m'')
-swapM (ξ-·₁ Π) = _ , _ , (ξ-·₁ $ proj₂ $ proj₂ $ swapM Π)
-swapM (ξ-·₂ x Π) = _ , _ , (ξ-·₂ x $ proj₂ $ proj₂ $ swapM Π)
-swapM (β-ƛ x) = _ , _ , β-ƛ x
-swapM (ξ-suc Π) = _ , _ , ξ-suc (proj₂ $ proj₂ $ swapM Π)
-swapM (ξ-case Π) = _ , _ , ξ-case (proj₂ $ proj₂ $ swapM Π)
-swapM β-zero = _ , _ , β-zero
-swapM (β-suc x) = _ , _ , β-suc x
-swapM β-μ = _ , _ , β-μ
-swapM (ξ-ret Π) = _ , _ , ξ-ret (proj₂ $ proj₂ $ swapM Π)
-swapM (ξ-bnd Π) = _ , _ , ξ-bnd (proj₂ $ proj₂ $ swapM Π)
-swapM (β-bndret x) = _ , _ , β-bndret x
-swapM (ξ-bndcmd Π) = _ , _ , ξ-bndcmd (proj₂ $ proj₂ $ swapM Π)
+--swapM : ∀ {Γ A C C' m m' x y E₁ E₂} {VE₁ : Value E₁} {VE₂ : Value E₂}
+      --→ Step {Γ} {A} (C ∥ (m ⊗ x ↪ VE₁) ⊗ y ↪ VE₂) (C' ∥ m')
+      --→ ∃[ C'' ] ∃[ m'' ] Step (C ∥ (m ⊗ y ↪ VE₂) ⊗ x ↪ VE₁) (C'' ∥ m'')
+--swapM (ξ-·₁ Π) = _ , _ , (ξ-·₁ $ proj₂ $ proj₂ $ swapM Π)
+--swapM (ξ-·₂ x Π) = _ , _ , (ξ-·₂ x $ proj₂ $ proj₂ $ swapM Π)
+--swapM (β-ƛ x) = _ , _ , β-ƛ x
+--swapM (ξ-suc Π) = _ , _ , ξ-suc (proj₂ $ proj₂ $ swapM Π)
+--swapM (ξ-case Π) = _ , _ , ξ-case (proj₂ $ proj₂ $ swapM Π)
+--swapM β-zero = _ , _ , β-zero
+--swapM (β-suc x) = _ , _ , β-suc x
+--swapM β-μ = _ , _ , β-μ
+--swapM (ξ-ret Π) = _ , _ , ξ-ret (proj₂ $ proj₂ $ swapM Π)
+--swapM (ξ-bnd Π) = _ , _ , ξ-bnd (proj₂ $ proj₂ $ swapM Π)
+--swapM (β-bndret x) = _ , _ , β-bndret x
+--swapM (ξ-bndcmd Π) = _ , _ , ξ-bndcmd (proj₂ $ proj₂ $ swapM Π)
+--
+--swapM {x = x} {y = y} {VE₁ = VE₁} {VE₂ = VE₂} (β-get {x = x'} eqv ∋ₘx) with x ≟ x' | y ≟ x' | extV VE₁ | extV VE₂
+--... | _ | yes refl    | _ | E' , VE' , eqv' = _ , _ , β-get {VE = VE'} eqv' (S Z)
+--... | yes refl | no _ | E' , VE' , eqv' | _ = _ , _ , β-get {VE = VE'} eqv' Z
+--swapM {x = x} {.x'} (β-get {x'} eqv Z)                     | no _  | no ¬p | _ | _ = ⊥-elim (¬p refl)
+--swapM {x = x} {y}   (β-get {.x} eqv (S Z))                 | no ¬p | no _  | _ | _ = ⊥-elim (¬p refl)
+--swapM {x = x} {y}   (β-get {x'} {VE = VE} eqv (S (S ∋ₘx))) | no _  | no _  | _ | _ = _ , _ , β-get {VE = VE} eqv (S (S ∋ₘx))
+--
+--swapM (ξ-set Π) = _ , _ , ξ-set (proj₂ $ proj₂ $ swapM Π)
+--swapM (β-setret VE eqv) = _ , _ , β-setret VE eqv
+--swapM (ξ-dcl₁ Π) = _ , _ , ξ-dcl₁ (proj₂ $ proj₂ $ swapM Π)
+--swapM (ξ-dcl₂ eqv₁ eqv₂ ∋ₘx Π) = _ , _ , ξ-dcl₂ {!!} {!!} {!!} {!!}
+--swapM β-dclret = _ , _ , β-dclret
+--
+--weakenM : ∀ {m m' Γ A a C C' E} {VE : Value E}
+        --→ Step {Γ} {A} (C ∥ m) (C' ∥ m')
+        --→ ∃[ C'' ] ∃[ m'' ] ∃[ E' ] (Σ[ VE' ∈ Value E' ] (m'' ∋ₘ a ↪ VE' × Step (C ∥ m ⊗ a ↪ VE) (C'' ∥ m'')))
+--
+--weakenM (ξ-·₁ Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-·₁ Π'
+--
+--weakenM (ξ-·₂ VV Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-·₂ VV Π'
+--
+--weakenM (β-ƛ x) = _ , _ , _ , _ , Z , (β-ƛ x)
+--weakenM (ξ-suc Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-suc Π'
+--weakenM (ξ-case Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-case Π'
+--weakenM β-zero = _ , _ , _ , _ , Z , β-zero
+--weakenM (β-suc x) = _ , _ , _ , _ , Z , β-suc x
+--weakenM β-μ = _ , _ , _ , _ , Z , β-μ
+--weakenM (ξ-ret Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-ret Π'
+--weakenM (ξ-bnd Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-bnd Π'
+--weakenM (β-bndret x) = _ , _ , _ , _ , Z , β-bndret x
+--weakenM (ξ-bndcmd Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-bndcmd Π'
+--weakenM {Γ = Γ} {a = a} {VE = VE'} (β-get {x = x} {VE = VE} eqv ∋ₘx) with a ≟ x
+--... | no _  = _ , _ , _ , _ , Z , β-get {VE = VE} eqv (S ∋ₘx)
+--... | yes refl with extV VE'
+--...   | E? , VE? , eq = _ , _ , _ , VE' , Z , β-get {VE = VE?} eq Z
+--weakenM (ξ-set Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-set Π'
+--weakenM (β-setret VE eqv) =  _ , _ , _ , _ , S Z , β-setret VE eqv
+--weakenM (ξ-dcl₁ Π) with weakenM Π
+--... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-dcl₁ Π'
+--weakenM {a = a} {VE = VE} (ξ-dcl₂ {x = x} eqv₁ eqv₂ ∋ₘx Π) with weakenM Π | a ≟ x
+--... | C'' , m'' , E' , VE' , ∋ₘa , Π' | no _     = _ , {!!} , {!!} , {!!} , {!Z!} , ξ-dcl₂ {!!} {!!} {!!} (proj₂ $ proj₂ $ swapM Π')
+--... | C'' , m'' , E' , VE' , ∋ₘa , Π' | yes refl = _ , {!!} , {!!} , {!!} , {!!} , ξ-dcl₂ {!!} {!!} {!!} (proj₂ $ proj₂ $ swapM Π')
+--weakenM β-dclret = _ , _ , _ , _ , Z , β-dclret
 
-swapM {x = x} {y = y} {VE₁ = VE₁} {VE₂ = VE₂} (β-get {x = x'} eqv ∋ₘx) with x ≟ x' | y ≟ x' | extV VE₁ | extV VE₂
-... | _ | yes refl    | _ | E' , VE' , eqv' = _ , _ , β-get {VE = VE'} eqv' (S Z)
-... | yes refl | no _ | E' , VE' , eqv' | _ = _ , _ , β-get {VE = VE'} eqv' Z
-swapM {x = x} {.x'} (β-get {x'} eqv Z)                     | no _  | no ¬p | _ | _ = ⊥-elim (¬p refl)
-swapM {x = x} {y}   (β-get {.x} eqv (S Z))                 | no ¬p | no _  | _ | _ = ⊥-elim (¬p refl)
-swapM {x = x} {y}   (β-get {x'} {VE = VE} eqv (S (S ∋ₘx))) | no _  | no _  | _ | _ = _ , _ , β-get {VE = VE} eqv (S (S ∋ₘx))
+stay : ∀ {m x y E E'} {VE : Value E} {VE' : Value E'} {∋ₘy : m ∋ₘ y ↪ VE'}
+     → m ∋ₘ x ↪ VE → ¬ x ≡ y → remove m y ∋ₘy ∋ₘ x ↪ VE
+stay {m = m} {y = y} {∋ₘy = ∋ₘy} m∋ₘx ¬p with remove m y ∋ₘy | inspect (remove m y) ∋ₘy
+stay {.(_ ⊗ y ↪ _)} {y = y} {∋ₘy = Z} Z ¬p | _ | Eq.[ refl ] = ⊥-elim (¬p refl)
+stay {.(_ ⊗ y ↪ _)} {y = y} {∋ₘy = Z} (S m∋ₘx) ¬p | _ | Eq.[ refl ] = m∋ₘx
+stay {.(_ ⊗ _ ↪ _)} {y = y} {∋ₘy = S ∋ₘy} Z ¬p | .(remove _ y ∋ₘy) | Eq.[ refl ] = {!!}
+stay {.(_ ⊗ _ ↪ _)} {y = y} {∋ₘy = S ∋ₘy} (S m∋ₘx) ¬p | .(remove _ y ∋ₘy) | Eq.[ refl ] = stay {_} {_} {y} {_} {_} {_} {_} {∋ₘy} m∋ₘx ¬p
+--stay {_} {_} {y} {_} {_} {_} {_} {∋ₘy}
 
-swapM (ξ-set Π) = _ , _ , ξ-set (proj₂ $ proj₂ $ swapM Π)
-swapM (β-setret VE eqv) = _ , _ , β-setret VE eqv
-swapM (ξ-dcl₁ Π) = _ , _ , ξ-dcl₁ (proj₂ $ proj₂ $ swapM Π)
-swapM (ξ-dcl₂ eqv₁ eqv₂ ∋ₘx Π) = _ , _ , ξ-dcl₂ {!!} {!!} {!!} {!!}
-swapM β-dclret = _ , _ , β-dclret
-
-weakenM : ∀ {m m' Γ A a C C' E} {VE : Value E}
-        → Step {Γ} {A} (C ∥ m) (C' ∥ m')
-        → ∃[ C'' ] ∃[ m'' ] ∃[ E' ] (Σ[ VE' ∈ Value E' ] (m'' ∋ₘ a ↪ VE' × Step (C ∥ m ⊗ a ↪ VE) (C'' ∥ m'')))
-
-weakenM (ξ-·₁ Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-·₁ Π'
-
-weakenM (ξ-·₂ VV Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-·₂ VV Π'
-
-weakenM (β-ƛ x) = _ , _ , _ , _ , Z , (β-ƛ x)
-weakenM (ξ-suc Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-suc Π'
-weakenM (ξ-case Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-case Π'
-weakenM β-zero = _ , _ , _ , _ , Z , β-zero
-weakenM (β-suc x) = _ , _ , _ , _ , Z , β-suc x
-weakenM β-μ = _ , _ , _ , _ , Z , β-μ
-weakenM (ξ-ret Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-ret Π'
-weakenM (ξ-bnd Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-bnd Π'
-weakenM (β-bndret x) = _ , _ , _ , _ , Z , β-bndret x
-weakenM (ξ-bndcmd Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-bndcmd Π'
-weakenM {Γ = Γ} {a = a} {VE = VE'} (β-get {x = x} {VE = VE} eqv ∋ₘx) with a ≟ x
-... | no _  = _ , _ , _ , _ , Z , β-get {VE = VE} eqv (S ∋ₘx)
-... | yes refl with extV VE'
-...   | E? , VE? , eq = _ , _ , _ , VE' , Z , β-get {VE = VE?} eq Z
-weakenM (ξ-set Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-set Π'
-weakenM (β-setret VE eqv) =  _ , _ , _ , _ , S Z , β-setret VE eqv
-weakenM (ξ-dcl₁ Π) with weakenM Π
-... | _ , _ , _ , _ , ∋ₘa , Π' = _ , _ , _ , _ , ∋ₘa , ξ-dcl₁ Π'
-weakenM {a = a} {VE = VE} (ξ-dcl₂ {x = x} eqv₁ eqv₂ ∋ₘx Π) with weakenM Π | a ≟ x
-... | C'' , m'' , E' , VE' , ∋ₘa , Π' | no _     = _ , {!!} , {!!} , {!!} , {!Z!} , ξ-dcl₂ {!!} {!!} {!!} (proj₂ $ proj₂ $ swapM Π')
-... | C'' , m'' , E' , VE' , ∋ₘa , Π' | yes refl = _ , {!!} , {!!} , {!!} , {!!} , ξ-dcl₂ {!!} {!!} {!!} (proj₂ $ proj₂ $ swapM Π')
-weakenM β-dclret = _ , _ , _ , _ , Z , β-dclret
+find : ∀ {Γ A C C' m m' x E} {VE : Value E}
+     → Step {Γ} {A} (C ∥ m ⊗ x ↪ VE) (C' ∥ m')
+     → ∃[ E' ] (Σ[ VE' ∈ Value E' ] m' ∋ₘ x ↪ VE')
+find (ξ-·₁ Π) = find Π
+find (ξ-·₂ x Π) = find Π
+find (β-ƛ x) = _ , _ , Z
+find (ξ-suc Π) = find Π
+find (ξ-case Π) = find Π
+find β-zero = _ , _ , Z
+find (β-suc x) = _ , _ , Z
+find β-μ = _ , _ , Z
+find (ξ-ret Π) = find Π
+find (ξ-bnd Π) = find Π
+find (β-bndret x) = _ , _ , Z
+find (ξ-bndcmd Π) = find Π
+find (β-get eqv ∋ₘx) = _ , _ , Z
+find (ξ-set Π) = find Π
+find (β-setret VE eqv) = _ , _ , S Z
+find (ξ-dcl₁ Π) = find Π
+find {x = x} {VE = VE} (ξ-dcl₂ {x = a} {m' = m'} eqv₁ eqv₂ ∋ₘa Π) with x ≟ a | find Π
+... | yes refl | E' , VE' , ∋ₘx = {!!} , ({!!} , {!!})
+... | no ¬p | E' , VE' , ∋ₘx = {!!}
+find β-dclret = _ , _ , Z
 
 _—→_ : ∀ {Γ A} → State Γ A → State Γ A → Set
 L —→ M = Step L M
@@ -512,12 +550,14 @@ progress (bnd C₁ C₂) m with progress C₁ m
 
 progress (dcl a E C) m with progress E m
 ... | step E—→E'               = step (ξ-dcl₁ E—→E')
-... | done (F-val VE) with progress C m
+... | done (F-val VE) with progress C (m ⊗ a ↪ VE)
 ...   | done (F-ret _)         = step β-dclret
 ...   | done (F-val (V-ret _)) = step β-dclret
-...   | step {m' = m'} C—→C' with weakenM {a = a} {VE = VE} C—→C'
-...     | _ , _ , _ , VE₂ , ∋ₘa , stp
-          = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE₂} (EqV-eq VE) (EqV-eq VE₂) ∋ₘa stp)
+...   | step {m' = m'} C—→C' with find C—→C'
+...     | _ , VE' , ∋ₘa = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE'} (EqV-eq VE) (EqV-eq VE') ∋ₘa C—→C')
+--with weakenM {a = a} {VE = VE} C—→C'
+--...     | _ , _ , _ , VE₂ , ∋ₘa , stp
+--          = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE₂} (EqV-eq VE) (EqV-eq VE₂) ∋ₘa stp)
 -- step (ξ-dcl₂ {VE₁ = {!!}} {!!} {!!} C—→C')
 
 progress (get a) m = {!!} --let ⟨ E , VE ⟩ = lookupₘ m a
