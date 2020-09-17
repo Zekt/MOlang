@@ -316,9 +316,9 @@ remove : ∀ {E} {VE : Value E} → (m : Map) → (a : Id) → m ∋ₘ a ↪ VE
 remove (m ⊗ a ↪ _) a Z = m
 remove (m ⊗ _ ↪ _) a (S ∋ₘa) = remove m a ∋ₘa
 
-data Remove {E} (a : Id) (VE : Value E) : Map → Map → Set where
-  Z : ∀ {m} → Remove a VE (m ⊗ a ↪ VE) m
-  S : ∀ {m m'} → Remove a VE m m' → Remove a VE (m ⊗ a ↪ VE) (m' ⊗ a ↪ VE)
+data Remove {a E} {VE : Value E} : (m : Map) → (m' : Map) → m ∋ₘ a ↪ VE → Set where
+  Z : ∀ {m} → Remove (m ⊗ a ↪ VE) m Z
+  S : ∀ {m m' ∋ₘa a' E'} {VE' : Value E'} → Remove m m' ∋ₘa → Remove (m ⊗ a' ↪ VE') (m' ⊗ a' ↪ VE') (S ∋ₘa)
 
 --Steps with State
 data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set where
@@ -394,13 +394,14 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
          → Step (E ∥ m) (E' ∥ m')
          → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x E' C ∥ m')
 
-  ξ-dcl₂ : ∀ {Γ ℳ x C C' m m' E₁ E₂ E₁' E₂'}
+  ξ-dcl₂ : ∀ {Γ ℳ x C C' m m' m'' E₁ E₂ E₁' E₂'}
              {VE₁ : Value E₁} {VE₂ : Value E₂} {VE₁' : Value E₁'} {VE₂' : Value E₂'}
          → EqV VE₁ VE₁'
          → EqV VE₂ VE₂'
          → (∋ₘx : m' ∋ₘ x ↪ VE₂')
+         → Remove m' m'' ∋ₘx
          → Step (C ∥ m ⊗ x ↪ VE₁') (C' ∥ m')
-         → Step (dcl {Γ} {ℳ} x E₁ C ∥ m) (dcl x E₂ C' ∥ remove m' x ∋ₘx)
+         → Step (dcl {Γ} {ℳ} x E₁ C ∥ m) (dcl x E₂ C' ∥ m'')
 
   β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
            → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
@@ -473,38 +474,41 @@ data Step : {Γ : Context} {A : Type} → State Γ A → State Γ A → Set wher
 --... | C'' , m'' , E' , VE' , ∋ₘa , Π' | yes refl = _ , {!!} , {!!} , {!!} , {!!} , ξ-dcl₂ {!!} {!!} {!!} (proj₂ $ proj₂ $ swapM Π')
 --weakenM β-dclret = _ , _ , _ , _ , Z , β-dclret
 
-stay : ∀ {m x y E E'} {VE : Value E} {VE' : Value E'} {∋ₘy : m ∋ₘ y ↪ VE'}
-     → m ∋ₘ x ↪ VE → ¬ x ≡ y → remove m y ∋ₘy ∋ₘ x ↪ VE
-stay {m = m} {y = y} {∋ₘy = ∋ₘy} m∋ₘx ¬p with remove m y ∋ₘy | inspect (remove m y) ∋ₘy
-stay {.(_ ⊗ y ↪ _)} {y = y} {∋ₘy = Z} Z ¬p | _ | Eq.[ refl ] = ⊥-elim (¬p refl)
-stay {.(_ ⊗ y ↪ _)} {y = y} {∋ₘy = Z} (S m∋ₘx) ¬p | _ | Eq.[ refl ] = m∋ₘx
-stay {.(_ ⊗ _ ↪ _)} {y = y} {∋ₘy = S ∋ₘy} Z ¬p | .(remove _ y ∋ₘy) | Eq.[ refl ] = {!!}
-stay {.(_ ⊗ _ ↪ _)} {y = y} {∋ₘy = S ∋ₘy} (S m∋ₘx) ¬p | .(remove _ y ∋ₘy) | Eq.[ refl ] = stay {_} {_} {y} {_} {_} {_} {_} {∋ₘy} m∋ₘx ¬p
+--stay : ∀ {m x y E E'} {VE : Value E} {VE' : Value E'} {∋ₘy : m ∋ₘ y ↪ VE'}
+     --→ m ∋ₘ x ↪ VE → ¬ x ≡ y → remove m y ∋ₘy ∋ₘ x ↪ VE
+--stay {m = m} {y = y} {∋ₘy = ∋ₘy} m∋ₘx ¬p with remove m y ∋ₘy | inspect (remove m y) ∋ₘy
+--stay {.(_ ⊗ y ↪ _)} {y = y} {∋ₘy = Z} Z ¬p | _ | Eq.[ refl ] = ⊥-elim (¬p refl)
+--stay {.(_ ⊗ y ↪ _)} {y = y} {∋ₘy = Z} (S m∋ₘx) ¬p | _ | Eq.[ refl ] = m∋ₘx
+--stay {.(_ ⊗ _ ↪ _)} {y = y} {∋ₘy = S ∋ₘy} Z ¬p | .(remove _ y ∋ₘy) | Eq.[ refl ] = {!!}
+--stay {.(_ ⊗ _ ↪ _)} {y = y} {∋ₘy = S ∋ₘy} (S m∋ₘx) ¬p | .(remove _ y ∋ₘy) | Eq.[ refl ] = stay {_} {_} {y} {_} {_} {_} {_} {∋ₘy} m∋ₘx ¬p
 --stay {_} {_} {y} {_} {_} {_} {_} {∋ₘy}
 
 find : ∀ {Γ A C C' m m' x E} {VE : Value E}
-     → Step {Γ} {A} (C ∥ m ⊗ x ↪ VE) (C' ∥ m')
+     → m ∋ₘ x ↪ VE → Step {Γ} {A} (C ∥ m) (C' ∥ m')
      → ∃[ E' ] (Σ[ VE' ∈ Value E' ] m' ∋ₘ x ↪ VE')
-find (ξ-·₁ Π) = find Π
-find (ξ-·₂ x Π) = find Π
-find (β-ƛ x) = _ , _ , Z
-find (ξ-suc Π) = find Π
-find (ξ-case Π) = find Π
-find β-zero = _ , _ , Z
-find (β-suc x) = _ , _ , Z
-find β-μ = _ , _ , Z
-find (ξ-ret Π) = find Π
-find (ξ-bnd Π) = find Π
-find (β-bndret x) = _ , _ , Z
-find (ξ-bndcmd Π) = find Π
-find (β-get eqv ∋ₘx) = _ , _ , Z
-find (ξ-set Π) = find Π
-find (β-setret VE eqv) = _ , _ , S Z
-find (ξ-dcl₁ Π) = find Π
-find {x = x} {VE = VE} (ξ-dcl₂ {x = a} {m' = m'} eqv₁ eqv₂ ∋ₘa Π) with x ≟ a | find Π
-... | yes refl | E' , VE' , ∋ₘx = {!!} , ({!!} , {!!})
-... | no ¬p | E' , VE' , ∋ₘx = {!!}
-find β-dclret = _ , _ , Z
+find ∋ₘx (ξ-·₁ Π) = find ∋ₘx Π
+find ∋ₘx (ξ-·₂ x Π) =  find ∋ₘx Π
+find ∋ₘx (β-ƛ x) = _ , _ , ∋ₘx
+find ∋ₘx (ξ-suc Π) =  find ∋ₘx Π
+find ∋ₘx (ξ-case Π) =  find ∋ₘx Π
+find ∋ₘx β-zero =  _ , _ , ∋ₘx
+find ∋ₘx (β-suc x) =  _ , _ , ∋ₘx
+find ∋ₘx β-μ =  _ , _ , ∋ₘx
+find ∋ₘx (ξ-ret Π) =  find ∋ₘx Π
+find ∋ₘx (ξ-bnd Π) =  find ∋ₘx Π
+find ∋ₘx (β-bndret x) =  _ , _ , ∋ₘx
+find ∋ₘx (ξ-bndcmd Π) =  find ∋ₘx Π
+find ∋ₘx (β-get x x₁) = {!!}
+find ∋ₘx (ξ-set Π) =  find ∋ₘx Π
+find ∋ₘx (β-setret VE x₁) =  _ , _ , S ∋ₘx
+find ∋ₘx (ξ-dcl₁ Π) =  find ∋ₘx Π
+find {x = x} ∋ₘx (ξ-dcl₂ {x = a} eqv₁ eqv₂ Z Z Π) with find (S ∋ₘx) Π
+find {x = x} Z (ξ-dcl₂ {x = x} eqv₁ eqv₂ Z Z Π) | E' , VE' , Z = E' , VE' , {!!}
+find {x = x} (S ∋ₘx) (ξ-dcl₂ {x = x} eqv₁ eqv₂ Z Z Π) | E' , VE' , Z = {!!} , {!!} , {!!}
+find {x = x} ∋ₘx (ξ-dcl₂ {x = a} eqv₁ eqv₂ Z Z Π) | E' , VE' , S ∋ₘx' = {!!} , {!!} , {!!}
+find {x = x} ∋ₘx (ξ-dcl₂ {x = a} eqv₁ eqv₂ ∋ₘa (S rm) Π) = {!!}
+find ∋ₘx β-dclret =  _ , _ , ∋ₘx
+
 
 _—→_ : ∀ {Γ A} → State Γ A → State Γ A → Set
 L —→ M = Step L M
@@ -553,8 +557,8 @@ progress (dcl a E C) m with progress E m
 ... | done (F-val VE) with progress C (m ⊗ a ↪ VE)
 ...   | done (F-ret _)         = step β-dclret
 ...   | done (F-val (V-ret _)) = step β-dclret
-...   | step {m' = m'} C—→C' with find C—→C'
-...     | _ , VE' , ∋ₘa = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE'} (EqV-eq VE) (EqV-eq VE') ∋ₘa C—→C')
+...   | step {m' = m'} C—→C' with find Z C—→C'
+...     | _ , VE' , ∋ₘa = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE'} (EqV-eq VE) (EqV-eq VE') ∋ₘa {!!} C—→C')
 --with weakenM {a = a} {VE = VE} C—→C'
 --...     | _ , _ , _ , VE₂ , ∋ₘa , stp
 --          = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE₂} (EqV-eq VE) (EqV-eq VE₂) ∋ₘa stp)
