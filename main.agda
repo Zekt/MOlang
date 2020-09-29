@@ -34,7 +34,6 @@ Id = String
 data MType : Set
 data Type : Set
 data Context : Set
-data _⊢_ : Context → Type → Set
 
 data MType where
   `ℕ : MType
@@ -42,7 +41,7 @@ data MType where
 data Type where
   _⇒_  : Type → Type → Type
   `ℕ   : Type
-  `Cmd : Type → Type
+  `Cmd : MType → Type
 
 data Memory : Set where
   ∅   : Memory
@@ -65,10 +64,18 @@ data _∋_ : Context → Type → Set where
     → Γ ∋ A → Γ ▷ B ∋ A
 
 variable
-  ℳ : Memory
-  Γ : Context
+  ℳ 𝒩 : Memory
+  Γ Δ : Context
   A B C : Type
   M N : MType
+
+liftType : MType → Type
+liftType `ℕ = `ℕ
+
+LiftType : MType → Type → Set
+LiftType `ℕ `ℕ = ⊤
+LiftType `ℕ (A ⇒ A₁) = ⊥
+LiftType `ℕ (`Cmd A) = ⊥
 
 
 --data _∋ₛ_ : Store → Id → Set where
@@ -120,10 +127,10 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 
   get : ℳ ∋ₘ M
-      → ℳ ⁏ Γ ⊢ `Cmd `ℕ
+      → ℳ ⁏ Γ ⊢ `Cmd M
 
-  set : ∀ {Γ ℳ}
-      → (a : Id) → (ℳ ⁏ Γ ⊢ `ℕ)
+  set : ℳ ∋ₘ M
+      → ℳ ⁏ Γ ⊢ `ℕ
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 
 --    cmd : ∀ {Σ Γ}
@@ -135,55 +142,66 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
 --        → Σ ⁏ Γ ⊩ ok → Σ ⁏ Γ ⊩ ok
 --        → Σ ⁏ Γ ⊩ ok
 
---lookup : Context → ℕ → Type
---lookup (Γ ▷ A) zero    = A
---lookup (Γ ▷ _) (suc n) = lookup Γ n
---lookup ∅       _       = ⊥-elim impossible
-  --where postulate impossible : ⊥
---
---count : ∀ {Γ} → (n : ℕ) → Γ ∋ lookup Γ n
---count {Γ ▷ _} zero    = Z
---count {Γ ▷ _} (suc n) = S (count n)
---count {∅}     _       = ⊥-elim impossible
-  --where postulate impossible : ⊥
---
---#_ : ∀ {Γ} → (n : ℕ) → Γ ⊢ lookup Γ n
---
---# n = ` (count n)
---
---ext : ∀ {Γ Δ}
-    --→ (∀ {A}   → Γ ∋ A     → Δ ∋ A)
-    -------------------------------------
-    --→ (∀ {A B} → Γ ▷ B ∋ A → Δ ▷ B ∋ A)
---ext ρ Z     = Z
---ext ρ (S x) = S (ρ x)
+lookup : Context → ℕ → Type
+lookup (Γ ▷ A) zero    = A
+lookup (Γ ▷ _) (suc n) = lookup Γ n
+lookup ∅       _       = ⊥-elim impossible
+  where postulate impossible : ⊥
 
---ext' : ∀ {Σ Ω}
---     → (∀ {a}   → Σ ∋ₛ a     → Ω ∋ₛ a)
---     -----------------------------------
---     → (∀ {a b} → Σ , b ∋ₛ a → Ω , b ∋ₛ a)
---ext' ρ Z     = Z
---ext' ρ (S x) = S (ρ x)
---
---mutual
-rename : ∀ {Γ Δ}
-       → (∀ {A} → Γ ∋ A  → Δ ∋ A)
+count : ∀ {Γ} → (n : ℕ) → Γ ∋ lookup Γ n
+count {Γ ▷ _} zero    = Z
+count {Γ ▷ _} (suc n) = S (count n)
+count {∅}     _       = ⊥-elim impossible
+  where postulate impossible : ⊥
+
+#_ : (n : ℕ) → ℳ ⁏ Γ ⊢ lookup Γ n
+
+# n = ` (count n)
+
+ext : (∀ {A}   → Γ ∋ A     → Δ ∋ A)
+      -------------------------------
+    → (∀ {A B} → Γ ▷ B ∋ A → Δ ▷ B ∋ A)
+ext ρ Z     = Z
+ext ρ (S x) = S (ρ x)
+
+extₘ : (∀ {a}   → ℳ ∋ₘ a     → 𝒩 ∋ₘ a)
+     -----------------------------------
+     → (∀ {a b} → ℳ ▷ b ∋ₘ a → 𝒩 ▷ b ∋ₘ a)
+extₘ ρ Z     = Z
+extₘ ρ (S x) = S (ρ x)
+
+rename : (∀ {A} → Γ ∋ A  → Δ ∋ A)
        ----------------------------------
-       → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
---rename ρ (` w)        = ` (ρ w)
---rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
---rename ρ (L · M)      = (rename ρ L) · (rename ρ M)
---rename ρ `zero        = `zero
---rename ρ (`suc M)     = `suc (rename ρ M)
---rename ρ (case L M N) = case (rename ρ L) (rename ρ M) (rename (ext ρ) N)
---rename ρ (μ M)        = μ (rename (ext ρ) M)
---rename ρ (ret N)      = ret (rename ρ N)
---rename ρ (bnd E C)    = bnd (rename ρ E) (rename (ext ρ) C)
---rename ρ (dcl a N C)  = dcl a (rename ρ N) (rename ρ C)
---rename ρ (get a)      = get a
---rename ρ (set a N)    = set a (rename ρ N)
---rename ρ (cmd C)      = cmd (rename' ρ C)
---
+       → (∀ {A} → ℳ ⁏ Γ ⊢ A → ℳ ⁏ Δ ⊢ A)
+rename ρ (` w)        = ` (ρ w)
+rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
+rename ρ (L · M)      = (rename ρ L) · (rename ρ M)
+rename ρ `zero        = `zero
+rename ρ (`suc M)     = `suc (rename ρ M)
+rename ρ (case L M N) = case (rename ρ L) (rename ρ M) (rename (ext ρ) N)
+rename ρ (μ M)        = μ (rename (ext ρ) M)
+rename ρ (ret N)      = ret (rename ρ N)
+rename ρ (bnd E C)    = bnd (rename ρ E) (rename (ext ρ) C)
+rename ρ (dcl N C)    = dcl (rename ρ N) (rename ρ C)
+rename ρ (get a)      = get a
+rename ρ (set a N)    = set a (rename ρ N)
+
+renameₘ : (∀ {M} → ℳ ∋ₘ M  → 𝒩 ∋ₘ M)
+        ----------------------------------
+        → (∀ {A} → ℳ ⁏ Γ ⊢ A → 𝒩 ⁏ Γ ⊢ A)
+renameₘ σ (` x) = ` x
+renameₘ σ (ƛ N) = ƛ (renameₘ σ N)
+renameₘ σ (L · M) = (renameₘ σ L) · renameₘ σ M
+renameₘ σ `zero = `zero
+renameₘ σ (`suc M) = `suc renameₘ σ M
+renameₘ σ (case L M N) = case (renameₘ σ L) (renameₘ σ M) (renameₘ σ N)
+renameₘ σ (μ M)        = μ (renameₘ σ M)
+renameₘ σ (ret N)      = ret (renameₘ σ N)
+renameₘ σ (bnd E C)    = bnd (renameₘ σ E) (renameₘ σ C)
+renameₘ σ (dcl N C)    = dcl (renameₘ σ N) (renameₘ (extₘ σ) C)
+renameₘ σ (get a)      = get (σ a)
+renameₘ σ (set a N)    = set (σ a) (renameₘ σ N)
+
 ----For now, A in _⁏_⊩_ must be ok.
 --  rename' : ∀ {Σ Ω Γ Δ}
 --          → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
@@ -195,51 +213,51 @@ rename : ∀ {Γ Δ}
 --  rename' τ ρ (get x ∋x)   = get x (τ ∋x)
 --  rename' τ ρ (set x ∋x M) = set x (τ ∋x) (rename τ ρ M)
 --
---exts : ∀ {Γ Δ}
-     --→ (∀ {A}   →     Γ ∋ A → Δ ⊢ A)
-     --→ (∀ {A B} → Γ ▷ B ∋ A → Δ ▷ B ⊢ A)
---exts ρ Z     = ` Z
---exts ρ (S x) = rename S (ρ x)
---
---exts' : ∀ {Σ Γ Δ}
---      → (∀ {A}   → Γ ∋ A → Σ ⁏ Δ ⊢ A)
---      → (∀ {A a} → Γ ∋ A → Σ , a ⁏ Δ ⊢ A)
---exts' ρ ∋A = rename S id (ρ ∋A)
---
---mutual
---subst : ∀ {Γ Δ}
-      --→ (∀ {A} → Γ ∋ A → Δ ⊢ A)
-      ---------------------------
-      --→ (∀ {A} → Γ ⊢ A → Δ ⊢ A)
---subst σ (` x)        = σ x
---subst σ (ƛ N)        = ƛ (subst (exts σ) N)
---subst σ (L · M)      = (subst σ L) · (subst σ M)
---subst σ `zero        = `zero
---subst σ (`suc N)     = `suc (subst σ N)
---subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
---subst σ (μ N)        = μ (subst (exts σ) N)
---subst σ (ret N)      = ret (subst σ N)
---subst σ (bnd C D)    = bnd (subst σ C) (subst (exts σ) D)
---subst σ (dcl a N C)  = dcl a (subst σ N) (subst σ C)
---subst σ (get a)      = get a
---subst σ (set a N)    = set a (subst σ N)
---
---_[_] : ∀ {Γ A B}
-     --→ Γ ▷ B ⊢ A → Γ ⊢ B
-     ---------------------
-     --→ Γ ⊢ A
---_[_] {Γ} {A} {B} N M = subst {Γ ▷ B} {Γ} σ N
-  --where
-    --σ : ∀ {A} → Γ ▷ B ∋ A → Γ ⊢ A
-    --σ Z     = M
-    --σ (S x) = ` x
---
---data Value : ∀ {Γ A} → Γ ⊢ A → Set where
-  --V-ƛ    : ∀ {Γ A B} {N : Γ ▷ A ⊢ B} → Value (ƛ N)
-  --V-zero : ∀ {Γ} → Value (`zero {Γ})
-  --V-suc  : ∀ {Γ} {V : Γ ⊢ `ℕ} → Value V → Value (`suc V)
-  --V-ret  : ∀ {Γ ℳ} {V : Γ ⊢ `ℕ} → Value V → Value (ret {Γ} {ℳ} V)
---
+exts : (∀ {A}   →     Γ ∋ A → ℳ ⁏ Δ ⊢ A)
+     → (∀ {A B} → Γ ▷ B ∋ A → ℳ ⁏ Δ ▷ B ⊢ A)
+exts ρ Z     = ` Z
+exts ρ (S x) = rename S (ρ x)
+
+exts' : (∀ {A}   → Γ ∋ A → ℳ ⁏ Δ ⊢ A)
+      → (∀ {A M} → Γ ∋ A → ℳ ▷ M ⁏ Δ ⊢ A)
+exts' σ x = renameₘ S (σ x)
+
+extsₘ : (∀ {M}   →     ℳ ∋ₘ M  → 𝒩 ⁏ Γ ⊢ `Cmd M)
+      → (∀ {M N} → ℳ ▷ N ∋ₘ M  → 𝒩 ▷ N ⁏ Γ ⊢ `Cmd M)
+extsₘ σ Z = get Z
+extsₘ σ (S x) = renameₘ S (σ x)
+
+subst : (∀ {A} → Γ ∋ A → ℳ ⁏ Δ ⊢ A)
+       ------------------------
+      → (∀ {A} → ℳ ⁏ Γ ⊢ A → ℳ ⁏ Δ ⊢ A)
+subst σ (` x)        = σ x
+subst σ (ƛ N)        = ƛ (subst (exts σ) N)
+subst σ (L · M)      = (subst σ L) · (subst σ M)
+subst σ `zero        = `zero
+subst σ (`suc N)     = `suc (subst σ N)
+subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
+subst σ (μ N)        = μ (subst (exts σ) N)
+subst σ (ret N)      = ret (subst σ N)
+subst σ (bnd C D)    = bnd (subst σ C) (subst (exts σ) D)
+subst σ (dcl N C)    = dcl (subst σ N) (subst (exts' σ) C)
+subst σ (get a)      = get a
+subst σ (set a N)    = set a (subst σ N)
+
+_[_] : ℳ ⁏ Γ ▷ B ⊢ A → ℳ ⁏ Γ ⊢ B
+     -------------------
+     → ℳ ⁏ Γ ⊢ A
+_[_] {ℳ} {Γ} {B} {A} N M = subst σ N
+  where
+    σ : ∀ {A} → Γ ▷ B ∋ A → ℳ ⁏ Γ ⊢ A
+    σ Z     = M
+    σ (S x) = ` x
+
+data Value : ℳ ⁏ Γ ⊢ A → Set where
+  V-ƛ    : {N : ℳ ⁏ Γ ▷ A ⊢ B} → Value (ƛ N)
+  V-zero : Value {ℳ} {Γ} `zero
+  V-suc  : {V : ℳ ⁏ Γ ⊢ `ℕ} → Value V → Value (`suc V)
+  V-ret  : {V : ℳ ⁏ Γ ⊢ `ℕ} → Value V → Value (ret V)
+
 --data Map : Set where
   --∅     : Map
   --_⊗_↪_ : ∀ {E : ∅ ⊢ `ℕ} → Map → Id → Value E → Map
