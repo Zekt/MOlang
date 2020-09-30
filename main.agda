@@ -66,8 +66,8 @@ data _∋_ : Context → Type → Set where
 variable
   ℳ 𝒩 : Memory
   Γ Δ : Context
-  A B C : Type
-  M N : MType
+  A B : Type
+  E F : MType
 
 liftType : MType → Type
 liftType `ℕ = `ℕ
@@ -117,19 +117,19 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
      -------------
      → ℳ ⁏ Γ ⊢ A
 
-  ret : ℳ ⁏ Γ ⊢ `ℕ
+  ret : ℳ ⁏ Γ ⊢ A
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 
-  bnd : ℳ ⁏ Γ ⊢ `Cmd `ℕ → ℳ ⁏ Γ ▷ `ℕ ⊢ `Cmd `ℕ
+  bnd : ℳ ⁏ Γ ⊢ `Cmd E → ℳ ⁏ Γ ▷ `ℕ ⊢ `Cmd `ℕ
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 
   dcl : ℳ ⁏ Γ ⊢ `ℕ → ℳ ▷ `ℕ ⁏ Γ ⊢ `Cmd `ℕ
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 
-  get : ℳ ∋ₘ M
-      → ℳ ⁏ Γ ⊢ `Cmd M
+  get : ℳ ∋ₘ E
+      → ℳ ⁏ Γ ⊢ `Cmd E
 
-  set : ℳ ∋ₘ M
+  set : ℳ ∋ₘ E
       → ℳ ⁏ Γ ⊢ `ℕ
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 
@@ -258,16 +258,92 @@ data Value : ℳ ⁏ Γ ⊢ A → Set where
   V-suc  : {V : ℳ ⁏ Γ ⊢ `ℕ} → Value V → Value (`suc V)
   V-ret  : {V : ℳ ⁏ Γ ⊢ `ℕ} → Value V → Value (ret V)
 
+data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → ℳ ⁏ Γ ⊢ A → Set where
+  ξ-·₁ : {L L' : ℳ ⁏ Γ ⊢ A ⇒ B} {M : ℳ ⁏ Γ ⊢ A}
+       → Step L L'
+       → Step (L · M) (L' · M)
+
+  ξ-·₂ : {V : ℳ ⁏ Γ ⊢ A ⇒ B} {M M' : ℳ ⁏ Γ ⊢ A}
+       → Value V
+       → Step M M'
+       → Step (V · M) (V · M')
+
+  β-ƛ : ∀ {N : ℳ ⁏ Γ ▷ A ⊢ B} {W : ℳ ⁏ Γ ⊢ A}
+      → Value W
+      → Step ((ƛ N) · W) (N [ W ])
+
+  ξ-suc : {M M′ : ℳ ⁏ Γ ⊢ `ℕ}
+        → Step M M′
+        → Step (`suc M) (`suc M′)
+
+  ξ-case : {L L′ : ℳ ⁏ Γ ⊢ `ℕ} {M : ℳ ⁏ Γ ⊢ A} {N : ℳ ⁏ Γ ▷ `ℕ ⊢ A}
+         → Step L L′
+         → Step (case L M N) (case L′ M N)
+
+  β-zero :  {M : ℳ ⁏ Γ ⊢ A} {N : ℳ ⁏ Γ ▷ `ℕ ⊢ A}
+         → Step (case `zero M N) M
+
+  β-suc : {V : ℳ ⁏ Γ ⊢ `ℕ} {M : ℳ ⁏ Γ ⊢ A} {N : ℳ ⁏ Γ ▷ `ℕ ⊢ A}
+        → Value V
+        → Step (case (`suc V) M N) (N [ V ])
+
+  β-μ : {N : ℳ ⁏ Γ ▷ A ⊢ A}
+      → Step (μ N) (N [ μ N ])
+
+  ξ-ret  : ∀ {M M' : ℳ ⁏ Γ ⊢ `Cmd `ℕ}
+         → Step M M'
+         → Step (ret M) (ret M')
+
+  ξ-bnd  : ∀ {M M' : ℳ ⁏ Γ ⊢ `Cmd `ℕ} {C}
+         → Step M M'
+         → Step (bnd M C) (bnd M' C)
+
+  β-bndret : ∀ {V : ℳ ⁏ Γ ⊢ `ℕ} {C}
+           → Value V
+           → Step (bnd (ret V) C) (C [ V ])
+
+  ξ-bndcmd : ∀ {M M' : ℳ ⁏ Γ ⊢ `Cmd `ℕ} {N}
+           → Step M M'
+           → Step (bnd M N) (bnd M' N)
+
+  β-get : ∀ {x} {E}
+        → Step (get x) (ret E)
+
+--  ξ-set : ∀ {Γ ℳ x m m'} {E E' : Γ ⊢ `ℕ}
+--        → Step (E ∥ m) (E' ∥ m')
+--        → Step (set {Γ} {ℳ} x E ∥ m) (set x E' ∥ m')
+--
+--  β-setret : ∀ {x Γ ℳ m E E'} {VE' : Value E'}
+--           → (VE : Value E)
+--           → EqV VE VE'
+--           → Step (set {Γ} {ℳ} x E ∥ m) (ret E ∥ (m ⊗ x ↪ VE'))
+--
+--  ξ-dcl₁ : ∀ {Γ ℳ x C m m'} {E E' : Γ ⊢ `ℕ}
+--         → Step (E ∥ m) (E' ∥ m')
+--         → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x E' C ∥ m')
+--
+--  ξ-dcl₂ : ∀ {Γ ℳ x C C' m m' m'' E₁ E₂ E₁' E₂'}
+--             {VE₁ : Value E₁} {VE₂ : Value E₂} {VE₁' : Value E₁'} {VE₂' : Value E₂'}
+--         → EqV VE₁ VE₁'
+--         → EqV VE₂ VE₂'
+--         → (∋ₘx : m' ∋ₘ x ↪ VE₂')
+--         → Remove m' m'' ∋ₘx
+--         → Step (C ∥ m ⊗ x ↪ VE₁') (C' ∥ m')
+--         → Step (dcl {Γ} {ℳ} x E₁ C ∥ m) (dcl x E₂ C' ∥ m'')
+--
+--  β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
+--           → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
+
 --data Map : Set where
   --∅     : Map
   --_⊗_↪_ : ∀ {E : ∅ ⊢ `ℕ} → Map → Id → Value E → Map
 --
 --data _∋ₘ_↪_ : ∀ {E} → Map → Id → Value {∅} {`ℕ} E → Set where
-  --Z : ∀ {m a E} {VE : Value E}
-    --→ m ⊗ a ↪ VE ∋ₘ a ↪ VE
-  --S : ∀ {m a E a' E'} {VE : Value E} {VE' : Value E'}
-    --→ m            ∋ₘ a ↪ VE
-    --→ m ⊗ a' ↪ VE' ∋ₘ a ↪ VE
+--    Z : ∀ {m a E} {VE : Value E}
+--      → m ⊗ a ↪ VE ∋ₘ a ↪ VE
+--    S : ∀ {m a E a' E'} {VE : Value E} {VE' : Value E'}
+--      → m            ∋ₘ a ↪ VE
+--      → m ⊗ a' ↪ VE' ∋ₘ a ↪ VE
 --
 --lookupₘ : (m : Map) → (x : Id) → ∃[ E ] (Σ[ VE ∈ Value E ] m ∋ₘ x ↪ VE)
 --lookupₘ (_⊗_↪_ m x VE) y with x ≟ y
