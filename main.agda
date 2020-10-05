@@ -120,8 +120,8 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
   ret : ℳ ⁏ Γ ⊢ A
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 
-  bnd : ℳ ⁏ Γ ⊢ `Cmd E → ℳ ⁏ Γ ▷ `ℕ ⊢ `Cmd `ℕ
-      → ℳ ⁏ Γ ⊢ `Cmd `ℕ
+  bnd : ℳ ⁏ Γ ⊢ `Cmd E → ℳ ⁏ Γ ▷ `ℕ ⊢ `Cmd F
+      → ℳ ⁏ Γ ⊢ `Cmd F
 
   dcl : ℳ ⁏ Γ ⊢ `ℕ → ℳ ▷ `ℕ ⁏ Γ ⊢ `Cmd `ℕ
       → ℳ ⁏ Γ ⊢ `Cmd `ℕ
@@ -131,7 +131,7 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
 
   set : ℳ ∋ₘ E
       → ℳ ⁏ Γ ⊢ `ℕ
-      → ℳ ⁏ Γ ⊢ `Cmd `ℕ
+      → ℳ ⁏ Γ ⊢ `Cmd E
 
 --    cmd : ∀ {Σ Γ}
 --         → Σ ⁏ Γ ⊩ ok
@@ -244,7 +244,6 @@ subst σ (get a)      = get a
 subst σ (set a N)    = set a (subst σ N)
 
 _[_] : ℳ ⁏ Γ ▷ B ⊢ A → ℳ ⁏ Γ ⊢ B
-     -------------------
      → ℳ ⁏ Γ ⊢ A
 _[_] {ℳ} {Γ} {B} {A} N M = subst σ N
   where
@@ -294,45 +293,38 @@ data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → �
          → Step M M'
          → Step (ret M) (ret M')
 
-  ξ-bnd  : ∀ {M M' : ℳ ⁏ Γ ⊢ `Cmd `ℕ} {C}
+  ξ-bnd  : ∀ {M M' : ℳ ⁏ Γ ⊢ `Cmd `ℕ} {C : ℳ ⁏ Γ ▷ `ℕ ⊢ `Cmd F}
          → Step M M'
          → Step (bnd M C) (bnd M' C)
 
-  β-bndret : ∀ {V : ℳ ⁏ Γ ⊢ `ℕ} {C}
+  β-bndret : ∀ {V : ℳ ⁏ Γ ⊢ `ℕ} {C : ℳ ⁏ Γ ▷ `ℕ ⊢ `Cmd F}
            → Value V
            → Step (bnd (ret V) C) (C [ V ])
 
-  ξ-bndcmd : ∀ {M M' : ℳ ⁏ Γ ⊢ `Cmd `ℕ} {N}
+  ξ-bndcmd : ∀ {M M' : ℳ ⁏ Γ ⊢ `Cmd `ℕ} {N : ℳ ⁏ Γ ▷ `ℕ ⊢ `Cmd F}
            → Step M M'
            → Step (bnd M N) (bnd M' N)
 
   β-get : ∀ {x} {E}
-        → Step (get x) (ret E)
+        → Step (get x) (ret {ℳ} {Γ} {A} E)
 
---  ξ-set : ∀ {Γ ℳ x m m'} {E E' : Γ ⊢ `ℕ}
---        → Step (E ∥ m) (E' ∥ m')
---        → Step (set {Γ} {ℳ} x E ∥ m) (set x E' ∥ m')
---
---  β-setret : ∀ {x Γ ℳ m E E'} {VE' : Value E'}
---           → (VE : Value E)
---           → EqV VE VE'
---           → Step (set {Γ} {ℳ} x E ∥ m) (ret E ∥ (m ⊗ x ↪ VE'))
---
---  ξ-dcl₁ : ∀ {Γ ℳ x C m m'} {E E' : Γ ⊢ `ℕ}
---         → Step (E ∥ m) (E' ∥ m')
---         → Step (dcl {Γ} {ℳ} x E C ∥ m) (dcl x E' C ∥ m')
---
---  ξ-dcl₂ : ∀ {Γ ℳ x C C' m m' m'' E₁ E₂ E₁' E₂'}
---             {VE₁ : Value E₁} {VE₂ : Value E₂} {VE₁' : Value E₁'} {VE₂' : Value E₂'}
---         → EqV VE₁ VE₁'
---         → EqV VE₂ VE₂'
---         → (∋ₘx : m' ∋ₘ x ↪ VE₂')
---         → Remove m' m'' ∋ₘx
---         → Step (C ∥ m ⊗ x ↪ VE₁') (C' ∥ m')
---         → Step (dcl {Γ} {ℳ} x E₁ C ∥ m) (dcl x E₂ C' ∥ m'')
---
---  β-dclret : ∀ {Γ ℳ x} {m : Map} {E E' : Γ ⊢ `ℕ}
---           → Step (dcl {Γ} {ℳ} x E (ret E') ∥ m) (ret E' ∥ m)
+  ξ-set : ∀ {Eₘ} {x : ℳ ∋ₘ Eₘ} {E} {E'}
+        → Step {ℳ} {Γ} E E'
+        → Step (set x E) (set x E')
+
+  β-setret : ∀ {x} {E}
+           → Step {ℳ} {Γ} (set x E) (ret E)
+
+  ξ-dcl₁ : ∀ {E E' C}
+         → Step {ℳ} {Γ} E E'
+         → Step (dcl E C) (dcl E' C)
+
+  ξ-dcl₂ : ∀ {C C' E₁ E₂}
+         → Step C C'
+         → Step {ℳ} {Γ} (dcl E₁ C) (dcl E₂ C')
+
+  β-dclret : ∀ {E E'}
+           → Step (dcl E (ret E')) (ret E')
 
 --data Map : Set where
   --∅     : Map
