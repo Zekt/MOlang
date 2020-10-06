@@ -1,4 +1,5 @@
-open import Relation.Binary.PropositionalEquality as Eq using (_≡_; _≢_; refl; cong; cong₂; sym; inspect)
+open import Relation.Binary.PropositionalEquality as Eq
+      using (_≡_; _≢_; refl; cong; cong₂; sym; inspect)
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
@@ -13,20 +14,17 @@ open import Function using (id; _$_; _∘_)
 
 module main where
 
-infix 2 _—→_
+--infix 2 _—→_
 --infix 2 _⊢→_
 infix  4 _⁏_⊢_
-infix  5 _⊗_↪_
 infix  4 _∋_
 infix  4 _∋ₘ_
-infix  4 _∋ₛ_
 infixl 5 _▷_
 infixr 7 _⇒_
 infixl 7 _·_
 infix  8 `suc_
 infix  9 `_
 infix  9 #_
-infix  4 _∥_
 
 Id : Set
 Id = String
@@ -189,11 +187,11 @@ rename ρ (set a N)    = set a (rename ρ N)
 renameₘ : (∀ {M} → ℳ ∋ₘ M  → 𝒩 ∋ₘ M)
         ----------------------------------
         → (∀ {A} → ℳ ⁏ Γ ⊢ A → 𝒩 ⁏ Γ ⊢ A)
-renameₘ σ (` x) = ` x
-renameₘ σ (ƛ N) = ƛ (renameₘ σ N)
-renameₘ σ (L · M) = (renameₘ σ L) · renameₘ σ M
-renameₘ σ `zero = `zero
-renameₘ σ (`suc M) = `suc renameₘ σ M
+renameₘ σ (` x)        = ` x
+renameₘ σ (ƛ N)        = ƛ (renameₘ σ N)
+renameₘ σ (L · M)      = (renameₘ σ L) · renameₘ σ M
+renameₘ σ `zero        = `zero
+renameₘ σ (`suc M)     = `suc renameₘ σ M
 renameₘ σ (case L M N) = case (renameₘ σ L) (renameₘ σ M) (renameₘ σ N)
 renameₘ σ (μ M)        = μ (renameₘ σ M)
 renameₘ σ (ret N)      = ret (renameₘ σ N)
@@ -218,9 +216,10 @@ exts : (∀ {A}   →     Γ ∋ A → ℳ ⁏ Δ ⊢ A)
 exts ρ Z     = ` Z
 exts ρ (S x) = rename S (ρ x)
 
-exts' : (∀ {A}   → Γ ∋ A → ℳ ⁏ Δ ⊢ A)
-      → (∀ {A M} → Γ ∋ A → ℳ ▷ M ⁏ Δ ⊢ A)
-exts' σ x = renameₘ S (σ x)
+exts' : ∀ {M}
+      → ℳ ⁏ Δ ⊢ A
+      → ℳ ▷ M ⁏ Δ ⊢ A
+exts' σ = renameₘ S σ
 
 extsₘ : (∀ {M}   →     ℳ ∋ₘ M  → 𝒩 ⁏ Γ ⊢ `Cmd M)
       → (∀ {M N} → ℳ ▷ N ∋ₘ M  → 𝒩 ▷ N ⁏ Γ ⊢ `Cmd M)
@@ -239,7 +238,7 @@ subst σ (case L M N) = case (subst σ L) (subst σ M) (subst (exts σ) N)
 subst σ (μ N)        = μ (subst (exts σ) N)
 subst σ (ret N)      = ret (subst σ N)
 subst σ (bnd C D)    = bnd (subst σ C) (subst (exts σ) D)
-subst σ (dcl N C)    = dcl (subst σ N) (subst (exts' σ) C)
+subst σ (dcl N C)    = dcl (subst σ N) (subst (exts' ∘ σ) C)
 subst σ (get a)      = get a
 subst σ (set a N)    = set a (subst σ N)
 
@@ -252,10 +251,16 @@ _[_] {ℳ} {Γ} {B} {A} N M = subst σ N
     σ (S x) = ` x
 
 data Value : ℳ ⁏ Γ ⊢ A → Set where
-  V-ƛ    : {N : ℳ ⁏ Γ ▷ A ⊢ B} → Value (ƛ N)
+  V-ƛ    : {N : ℳ ⁏ Γ ▷ A ⊢ B} → Value N → Value (ƛ N)
   V-zero : Value {ℳ} {Γ} `zero
   V-suc  : {V : ℳ ⁏ Γ ⊢ `ℕ} → Value V → Value (`suc V)
   V-ret  : {V : ℳ ⁏ Γ ⊢ `ℕ} → Value V → Value (ret V)
+
+shrink : (E : ℳ ▷ `ℕ ⁏ Γ ⊢ A) → Value E → ℳ ⁏ Γ ⊢ A
+shrink (ƛ E) (V-ƛ VE) = ƛ (shrink E VE)
+shrink `zero VE = `zero
+shrink (`suc E) (V-suc VE) = shrink E VE
+shrink (ret E) (V-ret VE) = ret (shrink E VE)
 
 data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → ℳ ⁏ Γ ⊢ A → Set where
   ξ-·₁ : {L L' : ℳ ⁏ Γ ⊢ A ⇒ B} {M : ℳ ⁏ Γ ⊢ A}
@@ -270,6 +275,10 @@ data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → �
   β-ƛ : ∀ {N : ℳ ⁏ Γ ▷ A ⊢ B} {W : ℳ ⁏ Γ ⊢ A}
       → Value W
       → Step ((ƛ N) · W) (N [ W ])
+
+  ξ-ƛ : ∀ {M M' : ℳ ⁏ Γ ▷ A ⊢ B}
+      → Step M M'
+      → Step (ƛ M) (ƛ M')
 
   ξ-suc : {M M′ : ℳ ⁏ Γ ⊢ `ℕ}
         → Step M M′
@@ -323,8 +332,9 @@ data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → �
          → Step C C'
          → Step {ℳ} {Γ} (dcl E₁ C) (dcl E₂ C')
 
-  β-dclret : ∀ {E E'}
-           → Step (dcl E (ret E')) (ret E')
+  β-dclret : ∀ {E : ℳ ⁏ Γ ⊢ `ℕ} {E' : ℳ ▷ `ℕ ⁏ Γ ⊢ `ℕ}
+           → (VE' : Value E')
+           → Step (dcl E (ret E')) (ret (shrink E' VE'))
 
 --data Map : Set where
   --∅     : Map
