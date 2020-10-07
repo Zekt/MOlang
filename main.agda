@@ -113,17 +113,20 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
       → ℳ ⁏ Γ ⊢ A
       → ℳ ⁏ Γ ⊢ `Cmd MA
 
-  bnd : ℳ ⁏ Γ ⊢ `Cmd MA → ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
+  bnd : ∀ {A B} {MA : MType A} {MB : MType B}
+      → ℳ ⁏ Γ ⊢ `Cmd MA → ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
       → ℳ ⁏ Γ ⊢ `Cmd MB
 
-  dcl : ℳ ⁏ Γ ⊢ A → ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB
+  dcl : ∀ {A B} {MA : MType A} {MB : MType B}
+      → ℳ ⁏ Γ ⊢ A → ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB
       → ℳ ⁏ Γ ⊢ `Cmd MB
 
   get : ℳ ∋ₘ MA
       → ℳ ⁏ Γ ⊢ `Cmd MA
 
-  set : ℳ ∋ₘ MA
-      → ℳ ⁏ Γ ⊢ `ℕ
+  set : ∀ {A} {MA : MType A}
+      → ℳ ∋ₘ MA
+      → ℳ ⁏ Γ ⊢ A
       → ℳ ⁏ Γ ⊢ `Cmd MA
 
 lookup : Context → ℕ → Type
@@ -205,12 +208,12 @@ exts' : ℳ ⁏ Δ ⊢ A
       → ℳ ▷ MA ⁏ Δ ⊢ A
 exts' σ = renameₘ S σ
 
-extsₘ : (∀ {A}   {MA : MType A}                → ℳ ∋ₘ MA       → 𝒩 ⁏ Γ ⊢ `Cmd MA)
+extsₘ : (∀ {A}   {MA : MType A}                → ℳ      ∋ₘ MA  → 𝒩      ⁏ Γ ⊢ `Cmd MA)
       → (∀ {A B} {MA : MType A} {MB : MType B} → ℳ ▷ MB ∋ₘ MA  → 𝒩 ▷ MB ⁏ Γ ⊢ `Cmd MA)
 extsₘ σ Z = get Z
 extsₘ σ (S x) = renameₘ S (σ x)
 
-subst : (∀ {A} → Γ ∋ A → ℳ ⁏ Δ ⊢ A)
+subst : (∀ {A} → Γ ∋ A     → ℳ ⁏ Δ ⊢ A)
        ------------------------
       → (∀ {A} → ℳ ⁏ Γ ⊢ A → ℳ ⁏ Δ ⊢ A)
 subst σ (` x)        = σ x
@@ -226,6 +229,21 @@ subst σ (dcl N C)    = dcl (subst σ N) (subst (exts' ∘ σ) C)
 subst σ (get a)      = get a
 subst σ (set a N)    = set a (subst σ N)
 
+substₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA   → 𝒩 ⁏ Γ ⊢ `Cmd MA)
+       → (∀ {A}                → ℳ ⁏ Γ ⊢ A → 𝒩 ⁏ Γ ⊢ A)
+substₘ ρ (` x) = {!!}
+substₘ ρ (ƛ N) = {!!}
+substₘ ρ (N · N₁) = {!!}
+substₘ ρ `zero = {!!}
+substₘ ρ (`suc N) = {!!}
+substₘ ρ (case N N₁ N₂) = {!!}
+substₘ ρ (μ N) = {!!}
+substₘ ρ (ret N) = {!!}
+substₘ ρ (bnd N N₁) = {!!}
+substₘ ρ (dcl N N₁) = {!!}
+substₘ ρ (get x) = {!!}
+substₘ ρ (set x N) = {!!}
+
 _[_] : ℳ ⁏ Γ ▷ B ⊢ A → ℳ ⁏ Γ ⊢ B
      → ℳ ⁏ Γ ⊢ A
 _[_] {ℳ} {Γ} {B} {A} N M = subst σ N
@@ -233,6 +251,15 @@ _[_] {ℳ} {Γ} {B} {A} N M = subst σ N
     σ : ∀ {A} → Γ ▷ B ∋ A → ℳ ⁏ Γ ⊢ A
     σ Z     = M
     σ (S x) = ` x
+
+_[_]' : ∀ {A B} {MA : MType A} {MB : MType B}
+      → ℳ ▷ MB ⁏ Γ ⊢ `Cmd MA → ℳ ⁏ Γ ⊢ B
+      → ℳ ⁏ Γ ⊢ `Cmd MA
+_[_]' {ℳ} {Γ} {A} {B} {MA} {MB} C D = substₘ ρ C
+  where
+    ρ : ∀ {A} {MA : MType A} → ℳ ▷ MB ∋ₘ MA → ℳ ⁏ Γ ⊢ `Cmd MA
+    ρ Z = ret D
+    ρ (S x) = get x
 
 data Value : ℳ ⁏ Γ ⊢ A → Set where
   V-ƛ    : {N : ℳ ⁏ Γ ▷ A ⊢ B} → Value N → Value (ƛ N)
@@ -291,12 +318,13 @@ data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → �
          → Step M M'
          → Step (bnd M C) (bnd M' C)
 
-  β-bndret : ∀ {V : ℳ ⁏ Γ ⊢ A} {C : ℳ ⁏ Γ ▷ A ⊢ `Cmd MA}
+  β-bndret : ∀ {A} {B} {MA : MType A} {MB : MType B}
+           → {V : ℳ ⁏ Γ ⊢ A} {C : ℳ ⁏ Γ ▷ A ⊢ `Cmd MB}
            → Value V
-           → Step (bnd {MA = MA} (ret V) C) (C [ V ])
+           → Step (bnd (ret {MA = MA} V) C) (C [ V ])
 
-  β-get : ∀ {x} {E}
-        → Step (get {MA = MA} x) (ret {ℳ} {Γ} {A} E)
+  --β-get : ∀ {A} {MA : MType A} {x : ℳ ∋ₘ MA}
+  --      → Step (get {MA = MA} x) (ret {ℳ} {Γ} {A} {!!})
 
   ξ-set : ∀ {x : ℳ ∋ₘ MA} {E} {E'}
         → Step {ℳ} {Γ} E E'
@@ -305,17 +333,19 @@ data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → �
   β-setret : ∀ {x : ℳ ∋ₘ MA} {E}
            → Step {ℳ} {Γ} (set x E) (ret E)
 
-  ξ-dcl₁ : ∀ {E E' : ℳ ⁏ Γ ⊢ `Cmd MA} {C : ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB}
+  ξ-dcl₁ : ∀ {A B} {MA : MType A} {MB : MType B}
+             {E E' : ℳ ⁏ Γ ⊢ A} {C : ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB}
          → Step {ℳ} {Γ} E E'
          → Step (dcl E C) (dcl E' C)
 
-  ξ-dcl₂ : ∀ {E : ℳ ⁏ Γ ⊢ A} {C C' : ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB}
-         → Step C C'
-         → Step {ℳ} {Γ} (dcl E C) (dcl E C')
+  ξ-dcl₂ : ∀ {A B} {MA : MType A} {MB : MType B}
+             {E : ℳ ⁏ Γ ⊢ A} {C C' : ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB}
+         → Value E
+         → Step {ℳ} {Γ} (dcl E C) (C [ E ]')
 
-  β-dclret : ∀ {E : ℳ ⁏ Γ ⊢ A} {E' : ℳ ▷ `ℕ ⁏ Γ ⊢ `ℕ}
+  β-dclret : ∀ {E : ℳ ⁏ Γ ⊢ A} {E' : ℳ ▷ MA ⁏ Γ ⊢ B}
            → (VE' : Value E')
-           → Step (dcl E (ret E')) (ret (shrink E' VE'))
+           → Step (dcl E (ret {MA = MB} E')) (ret (shrink E' VE'))
 
 _—→_ : ∀ (L M : ℳ ⁏ Γ ⊢ A) → Set
 L —→ M = Step L M
@@ -326,7 +356,9 @@ data Progress (M : ℳ ⁏ Γ ⊢ A) : Set where
        → Step M M'
        → Progress M
 
-progress : (M : ℳ ⁏ Γ ⊢ A) → Progress M
+progress : ∀ {ℳ Γ A} → (M : ℳ ⁏ Γ ⊢ A) → Progress {ℳ} {Γ} {A} M
+
+progress (` x) = {!!}
 
 progress (ƛ M) with progress M
 ... | step M→M' = step (ξ-ƛ M→M')
@@ -358,25 +390,20 @@ progress (ret {MA = MA} M) with progress M
 
 progress (bnd C₁ C₂) with progress C₁
 ... | step C₁—→C₁′    = step (ξ-bnd C₁—→C₁′)
-... | done (V-ret MA VE) = step {!β-bndret ?!}
+progress (bnd (ret CV) C₂) | done (V-ret MB VC) = step (β-bndret VC)
 
---progress (dcl E C) with progress E
---... | step E—→E' = step (ξ-dcl₁ E—→E')
---... | done VE with progress C
---...   | step C—→C'      = step (ξ-dcl₂ C—→C')
---...   | done (V-ret VC) = step {!β-dclret VC!}
---with weakenM {a = a} {VE = VE} C—→C'
---...     | _ , _ , _ , VE₂ , ∋ₘa , stp
---          = step (ξ-dcl₂ {VE₁ = VE} {VE₂ = VE₂} (EqV-eq VE) (EqV-eq VE₂) ∋ₘa stp)
--- step (ξ-dcl₂ {VE₁ = {!!}} {!!} {!!} C—→C')
+progress (dcl E C) with progress E
+... | step E—→E' = step (ξ-dcl₁ E—→E')
+... | done VE with progress C
+...   | step C—→C'      = step {!!}
+...   | done (V-ret MA VC) = step (β-dclret VC)
 
---progress (get a) m = {!!} --let ⟨ E , VE ⟩ = lookupₘ m a
-                      ----in step (β-get {VE = VE} (EqV-eq VE))
---
---progress (set a E) m with progress E m
---... | step E—→E′      = step (ξ-set E—→E′)
---... | done (F-val VE) = step (β-setret {VE' = VE} VE (EqV-eq VE))
---
+progress (get a) = {!!}
+
+progress (set a E) with progress E
+... | step E—→E′ = step (ξ-set E—→E′)
+... | done VE    = step β-setret
+
 --infix  2 _—↠_ _—↣_
 --infix  1 start_
 --infixr 2 _—→⟨_⟩_
