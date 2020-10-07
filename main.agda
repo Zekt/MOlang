@@ -121,7 +121,8 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
       → ℳ ⁏ Γ ⊢ A → ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB
       → ℳ ⁏ Γ ⊢ `Cmd MB
 
-  get : ℳ ∋ₘ MA
+  get : ∀ {A} {MA : MType A}
+      → ℳ ∋ₘ MA
       → ℳ ⁏ Γ ⊢ `Cmd MA
 
   set : ∀ {A} {MA : MType A}
@@ -199,14 +200,19 @@ renameₘ σ (set a N)    = set (σ a) (renameₘ σ N)
 ----  rename' τ ρ (get x ∋x)   = get x (τ ∋x)
 ----  rename' τ ρ (set x ∋x M) = set x (τ ∋x) (rename τ ρ M)
 ----
+
+ext- : ℳ ⁏ Γ ⊢ A
+     → ℳ ⁏ Γ ▷ B ⊢ A
+ext- N = rename S N
+
 exts : (∀ {A}   →     Γ ∋ A → ℳ ⁏ Δ ⊢ A)
      → (∀ {A B} → Γ ▷ B ∋ A → ℳ ⁏ Δ ▷ B ⊢ A)
 exts ρ Z     = ` Z
 exts ρ (S x) = rename S (ρ x)
 
 exts' : ℳ ⁏ Δ ⊢ A
-      → ℳ ▷ MA ⁏ Δ ⊢ A
-exts' σ = renameₘ S σ
+      → ℳ ▷ MB ⁏ Δ ⊢ A
+exts' N = renameₘ S N
 
 extsₘ : (∀ {A}   {MA : MType A}                → ℳ      ∋ₘ MA  → 𝒩      ⁏ Γ ⊢ `Cmd MA)
       → (∀ {A B} {MA : MType A} {MB : MType B} → ℳ ▷ MB ∋ₘ MA  → 𝒩 ▷ MB ⁏ Γ ⊢ `Cmd MA)
@@ -229,20 +235,20 @@ subst σ (dcl N C)    = dcl (subst σ N) (subst (exts' ∘ σ) C)
 subst σ (get a)      = get a
 subst σ (set a N)    = set a (subst σ N)
 
-substₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA   → 𝒩 ⁏ Γ ⊢ `Cmd MA)
-       → (∀ {A}                → ℳ ⁏ Γ ⊢ A → 𝒩 ⁏ Γ ⊢ A)
-substₘ ρ (` x) = {!!}
-substₘ ρ (ƛ N) = {!!}
-substₘ ρ (N · N₁) = {!!}
-substₘ ρ `zero = {!!}
-substₘ ρ (`suc N) = {!!}
-substₘ ρ (case N N₁ N₂) = {!!}
-substₘ ρ (μ N) = {!!}
-substₘ ρ (ret N) = {!!}
-substₘ ρ (bnd N N₁) = {!!}
-substₘ ρ (dcl N N₁) = {!!}
-substₘ ρ (get x) = {!!}
-substₘ ρ (set x N) = {!!}
+substₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA         → 𝒩 ⁏ Γ ⊢ `Cmd MA)
+       → (∀ {A} {MA : MType A} → ℳ ⁏ Γ ⊢ `Cmd MA → 𝒩 ⁏ Γ ⊢ `Cmd MA)
+--substₘ ρ (` x) = ` x
+--substₘ ρ (ƛ N) = ƛ (substₘ (ext- ∘ ρ) N)
+--substₘ ρ (L · M) = substₘ ρ L · substₘ ρ M
+--substₘ ρ `zero = `zero
+--substₘ ρ (`suc N) = `suc (substₘ ρ N)
+--substₘ ρ (case L M N) = case (substₘ ρ L) (substₘ ρ M) (substₘ (ext- ∘ ρ) N)
+--substₘ ρ (μ N) = μ (substₘ (ext- ∘ ρ) N)
+--substₘ ρ (ret N) = ret (substₘ ρ N)
+--substₘ ρ (bnd C D) = bnd (substₘ ρ C) (substₘ (ext- ∘ ρ) D)
+--substₘ ρ (dcl N C) = dcl (substₘ ρ N) (substₘ {!!} C)
+--substₘ ρ (get x) = {!!}
+--substₘ ρ (set x N) = set {!!} (substₘ ρ N)
 
 _[_] : ℳ ⁏ Γ ▷ B ⊢ A → ℳ ⁏ Γ ⊢ B
      → ℳ ⁏ Γ ⊢ A
@@ -258,8 +264,8 @@ _[_]' : ∀ {A B} {MA : MType A} {MB : MType B}
 _[_]' {ℳ} {Γ} {A} {B} {MA} {MB} C D = substₘ ρ C
   where
     ρ : ∀ {A} {MA : MType A} → ℳ ▷ MB ∋ₘ MA → ℳ ⁏ Γ ⊢ `Cmd MA
-    ρ Z = ret D
-    ρ (S x) = get x
+    ρ Z = {!!}
+    ρ (S x) = {!!}
 
 data Value : ℳ ⁏ Γ ⊢ A → Set where
   V-ƛ    : {N : ℳ ⁏ Γ ▷ A ⊢ B} → Value N → Value (ƛ N)
