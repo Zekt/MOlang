@@ -235,20 +235,20 @@ subst σ (dcl N C)    = dcl (subst σ N) (subst (exts' ∘ σ) C)
 subst σ (get a)      = get a
 subst σ (set a N)    = set a (subst σ N)
 
-substₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA         → 𝒩 ⁏ Γ ⊢ `Cmd MA)
-       → (∀ {A} {MA : MType A} → ℳ ⁏ Γ ⊢ `Cmd MA → 𝒩 ⁏ Γ ⊢ `Cmd MA)
---substₘ ρ (` x) = ` x
---substₘ ρ (ƛ N) = ƛ (substₘ (ext- ∘ ρ) N)
---substₘ ρ (L · M) = substₘ ρ L · substₘ ρ M
---substₘ ρ `zero = `zero
---substₘ ρ (`suc N) = `suc (substₘ ρ N)
---substₘ ρ (case L M N) = case (substₘ ρ L) (substₘ ρ M) (substₘ (ext- ∘ ρ) N)
---substₘ ρ (μ N) = μ (substₘ (ext- ∘ ρ) N)
---substₘ ρ (ret N) = ret (substₘ ρ N)
---substₘ ρ (bnd C D) = bnd (substₘ ρ C) (substₘ (ext- ∘ ρ) D)
---substₘ ρ (dcl N C) = dcl (substₘ ρ N) (substₘ {!!} C)
---substₘ ρ (get x) = {!!}
---substₘ ρ (set x N) = set {!!} (substₘ ρ N)
+substₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA   → 𝒩 ⁏ Γ ⊢ `Cmd MA)
+       → (∀ {A}                → ℳ ⁏ Γ ⊢ A → 𝒩 ⁏ Γ ⊢ A)
+substₘ ρ (` x) = ` x
+substₘ ρ (ƛ N) = ƛ (substₘ (ext- ∘ ρ) N)
+substₘ ρ (L · M) = substₘ ρ L · substₘ ρ M
+substₘ ρ `zero = `zero
+substₘ ρ (`suc N) = `suc (substₘ ρ N)
+substₘ ρ (case L M N) = case (substₘ ρ L) (substₘ ρ M) (substₘ (ext- ∘ ρ) N)
+substₘ ρ (μ N) = μ (substₘ (ext- ∘ ρ) N)
+substₘ ρ (ret N) = ret (substₘ ρ N)
+substₘ ρ (bnd C D) = bnd (substₘ ρ C) (substₘ (ext- ∘ ρ) D)
+substₘ ρ (dcl N C) = dcl (substₘ ρ N) (substₘ (λ {Z → get Z ; (S x) → exts' (ρ x)}) C)
+substₘ ρ (get x) = ρ x
+substₘ ρ (set x N) = {!!}
 
 _[_] : ℳ ⁏ Γ ▷ B ⊢ A → ℳ ⁏ Γ ⊢ B
      → ℳ ⁏ Γ ⊢ A
@@ -264,8 +264,8 @@ _[_]' : ∀ {A B} {MA : MType A} {MB : MType B}
 _[_]' {ℳ} {Γ} {A} {B} {MA} {MB} C D = substₘ ρ C
   where
     ρ : ∀ {A} {MA : MType A} → ℳ ▷ MB ∋ₘ MA → ℳ ⁏ Γ ⊢ `Cmd MA
-    ρ Z = {!!}
-    ρ (S x) = {!!}
+    ρ Z = ret D
+    ρ (S x) = get x
 
 data Value : ℳ ⁏ Γ ⊢ A → Set where
   V-ƛ    : {N : ℳ ⁏ Γ ▷ A ⊢ B} → Value N → Value (ƛ N)
@@ -336,8 +336,8 @@ data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → �
         → Step {ℳ} {Γ} E E'
         → Step (set x E) (set x E')
 
-  β-setret : ∀ {x : ℳ ∋ₘ MA} {E}
-           → Step {ℳ} {Γ} (set x E) (ret E)
+--  β-setret : ∀ {x : ℳ ∋ₘ MA} {E}
+--           → Step {ℳ} {Γ} (set x E) (ret E)
 
   ξ-dcl₁ : ∀ {A B} {MA : MType A} {MB : MType B}
              {E E' : ℳ ⁏ Γ ⊢ A} {C : ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB}
@@ -408,7 +408,7 @@ progress (get a) = {!!}
 
 progress (set a E) with progress E
 ... | step E—→E′ = step (ξ-set E—→E′)
-... | done VE    = step β-setret
+... | done VE    = step {!!}
 
 --infix  2 _—↠_ _—↣_
 --infix  1 start_
