@@ -417,30 +417,47 @@ progress (get ())
 --... | step E—→E′ = step (ξ-set E—→E′)
 --... | done VE    = step {!!}
 
---infix  2 _—↠_ _—↣_
+infix  2 _—↠_
 --infix  1 start_
 --infixr 2 _—→⟨_⟩_
 --infixr 2 _—↦⟨_⟩_
 --infix  3 _end
---
---data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
---
---  _end : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
---       ------
---       → M —↠ M
---
---  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
---          → L —→ M
---          → M —↠ N
---          ------
---          → L —↠ N
---
---start_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
---       → M —↠ N
---       ------
---       → M —↠ N
---start M—↠N = M—↠N
---
+
+data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
+
+  _end : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
+       ------
+       → M —↠ M
+
+  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
+          → L —→ M
+          → M —↠ N
+          ------
+          → L —↠ N
+
+data Gas : Set where
+  gas : ℕ → Gas
+
+start_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
+       → M —↠ N
+       ------
+       → M —↠ N
+start M—↠N = M—↠N
+
+data Finished {Σ Γ A} (N : Σ ⁏ Γ ⊢ A) : Set where
+  done       : Value N → Finished N
+  out-of-gas : Finished N
+
+data Steps : ∀ {Σ A} → Σ ⁏ ∅ ⊢ A → Set where
+  steps : ∀ {Σ A} {L N : Σ ⁏ ∅ ⊢ A}
+        → L —↠ N → Finished N → Steps L
+
+eval : Gas → (L : ∅ ⁏ ∅ ⊢ A) → Steps L
+eval (gas zero) L = steps (L end) out-of-gas
+eval (gas (suc x)) L with progress L
+... | done VL   = steps (L end) (done VL)
+... | step {M} L—→M with eval (gas x) M
+...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
 --data _—↣_ : ∀ {Σ Γ A} → State Σ Γ A → State Σ Γ A → Set where
 --  _stop : ∀ {Σ Γ A} (S : State Σ Γ A)
 --        → S —↣ S
@@ -455,21 +472,10 @@ progress (get ())
 --     → S —↣ T
 --run S—↣T = S—↣T
 --
---data Gas : Set where
---  gas : ℕ → Gas
---
---
---data Finished {Σ Γ A} (N : Σ ⁏ Γ ⊢ A) : Set where
---  done       : Value Σ N → Finished N
---  out-of-gas : Finished N
---
 --data Finished' {Σ Γ A} (S : State Σ Γ A) : Set where
 --  done       : Final Σ S → Finished' S
 --  out-of-gas : Finished' S
 --
---data Steps : ∀ {Σ A} → Σ ⁏ ∅ ⊢ A → Set where
---  steps : ∀ {Σ A} {L N : Σ ⁏ ∅ ⊢ A}
---        → L —↠ N → Finished N → Steps L
 --
 --data Steps' : ∀ {Σ A} → State Σ ∅ A → Set where
 --  steps : ∀ {Σ A} {S T : State Σ ∅ A}
@@ -478,13 +484,7 @@ progress (get ())
 --data EvalTo : ∀ {Σ} → State Σ ∅ ok → State Σ ∅ ok → Set where
 --  evalto : ∀ {Σ} → {S T : State Σ ∅ ok} → S —↣ T → Final Σ T → EvalTo S T
 --
---eval : ∀ {Σ A} → Gas → (L : Σ ⁏ ∅ ⊢ A) → Steps L
---eval (gas zero) L = steps (L end) out-of-gas
---eval (gas (suc x)) L with progress L
---... | done VL   = steps (L end) (done VL)
---... | step {M} L—→M with eval (gas x) M
---...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
---
+
 --eval' : ∀ {Σ} → Gas → (S : State Σ ∅ ok) → Steps' S
 --eval' (gas zero) s = steps (s stop) out-of-gas
 --eval' (gas (suc x)) s@(C ⟪ prf ⟫ m) with progress' C prf m
