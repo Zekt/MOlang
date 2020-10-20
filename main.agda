@@ -136,7 +136,11 @@ lookup (Γ ▷ _) (suc n) = lookup Γ n
 lookup ∅       _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
-lookupₘ : Memory → ℕ → MType A
+lookupₘ : Memory → ℕ → ∃[ A ] MType A
+lookupₘ (_▷_ {A} ℳ MA) zero = A , MA
+lookupₘ (ℳ ▷ MA) (suc n) = lookupₘ ℳ n
+lookupₘ ∅ _ = ⊥-elim impossible
+  where postulate impossible : ⊥
 
 count : ∀ {Γ} → (n : ℕ) → Γ ∋ lookup Γ n
 count {Γ ▷ _} zero    = Z
@@ -144,9 +148,9 @@ count {Γ ▷ _} (suc n) = S (count n)
 count {∅}     _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
-countₘ : ∀ {ℳ} → (n : ℕ) → ℳ ∋ₘ lookupₘ ℳ n
-countₘ {ℳ ▷ _} zero    = {!!}
-countₘ {ℳ ▷ _} (suc n) = {!!}
+countₘ : ∀ {ℳ} → (n : ℕ) → ℳ ∋ₘ proj₂ (lookupₘ ℳ n)
+countₘ {ℳ ▷ _} zero    = Z
+countₘ {ℳ ▷ _} (suc n) = S (countₘ n)
 countₘ {∅}     _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
@@ -452,12 +456,14 @@ data Steps : ∀ {Σ A} → Σ ⁏ ∅ ⊢ A → Set where
   steps : ∀ {Σ A} {L N : Σ ⁏ ∅ ⊢ A}
         → L —↠ N → Finished N → Steps L
 
+{-# TERMINATING #-}
 eval : Gas → (L : ∅ ⁏ ∅ ⊢ A) → Steps L
 eval (gas zero) L = steps (L end) out-of-gas
 eval (gas (suc x)) L with progress L
 ... | done VL   = steps (L end) (done VL)
 ... | step {M} L—→M with eval (gas x) M
 ...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
+
 --data _—↣_ : ∀ {Σ Γ A} → State Σ Γ A → State Σ Γ A → Set where
 --  _stop : ∀ {Σ Γ A} (S : State Σ Γ A)
 --        → S —↣ S
