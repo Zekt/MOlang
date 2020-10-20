@@ -5,13 +5,15 @@ open import main
 
 module terms where
 
+
+
 sucμ : ∅ ⁏ ∅ ⊢ `ℕ
 sucμ = μ (`suc (# 0))
 
-M₂ : ∅ ⁏ ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
+M₂ : ∅ ⁏ ∅ ▷ `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
 M₂ = ƛ (# 1 · (# 1 · # 0))
 
-M : ∅ ⁏ ∅ , `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
+M : ∅ ⁏ ∅ ▷ `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
 M = # 0
 
 Ch : Type → Type
@@ -28,13 +30,6 @@ sucᶜ = ƛ (`suc (# 0))
 
 2+2ᶜ : ∀ {Σ Γ} → Σ ⁏ Γ ⊢ `ℕ
 2+2ᶜ = plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero
-
-cmdᶜ : ∀ {Σ Γ} → (Σ , "x") ⁏ Γ ⊩ ok
-cmdᶜ = bnd (cmd (set "x" Z 2+2ᶜ)) (get "x" Z)
-
-S1 : State (∅ , "x") ∅ ok
-S1 = cmdᶜ ⟪ id ⟫ (∅ ⊗ "x" ↪ ⟨ `zero , V-zero ⟩ )
-
 
 get&inc : ∀ {Σ Γ} → (Σ , "counter") ⁏ Γ ⊩ ok
 get&inc = bnd (cmd (get "counter" Z)) (set "counter" Z (`suc # 0))
