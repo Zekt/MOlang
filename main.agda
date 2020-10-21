@@ -22,7 +22,7 @@ infix  4 _∋ₘ_
 infixl 5 _▷_
 infixr 7 _⇒_
 infixl 7 _·_
-infix  8 `suc_
+infix  8 `suc_ get_
 infix  9 `_
 infix  9 #_
 
@@ -121,7 +121,7 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
       → ℳ ⁏ Γ ⊢ A → ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB
       → ℳ ⁏ Γ ⊢ `Cmd MB
 
-  get : ∀ {A} {MA : MType A}
+  get_ : ∀ {A} {MA : MType A}
       → ℳ ∋ₘ MA
       → ℳ ⁏ Γ ⊢ `Cmd MA
 
@@ -155,8 +155,10 @@ countₘ {∅}     _       = ⊥-elim impossible
   where postulate impossible : ⊥
 
 #_ : (n : ℕ) → ℳ ⁏ Γ ⊢ lookup Γ n
-
 # n = ` (count n)
+
+#ₘ : (n : ℕ) → ℳ ⁏ Γ ⊢ `Cmd (proj₂ (lookupₘ ℳ n))
+#ₘ n = get (countₘ n)
 
 ext : (∀ {A}   → Γ ∋ A     → Δ ∋ A)
       -------------------------------
