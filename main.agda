@@ -109,6 +109,7 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
   μ_ : ℳ ⁏ Γ ▷ A ⊢ A
      → ℳ ⁏ Γ ⊢ A
 
+  --□-intro?
   ret : ∀ {A} {MA : MType A}
       → ℳ ⁏ Γ ⊢ A
       → ℳ ⁏ Γ ⊢ `Cmd MA
@@ -117,6 +118,7 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
       → ℳ ⁏ Γ ⊢ `Cmd MA → ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
       → ℳ ⁏ Γ ⊢ `Cmd MB
 
+  --□-elim? □-elimₚ?
   dcl : ∀ {A B} {MA : MType A} {MB : MType B}
       → ℳ ⁏ Γ ⊢ A → ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB
       → ℳ ⁏ Γ ⊢ `Cmd MB
@@ -129,6 +131,7 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
 --      → ℳ ∋ₘ MA
 --      → ℳ ⁏ Γ ⊢ A
 --      → ℳ ⁏ Γ ⊢ `Cmd MA
+
 
 lookup : Context → ℕ → Type
 lookup (Γ ▷ A) zero    = A
@@ -424,10 +427,9 @@ progress (get ())
 --... | done VE    = step {!!}
 
 infix  2 _—↠_
---infix  1 start_
---infixr 2 _—→⟨_⟩_
---infixr 2 _—↦⟨_⟩_
---infix  3 _end
+infix  1 start_
+infixr 2 _—→⟨_⟩_
+infix  3 _end
 
 data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
 
@@ -458,7 +460,6 @@ data Steps : ∀ {Σ A} → Σ ⁏ ∅ ⊢ A → Set where
   steps : ∀ {Σ A} {L N : Σ ⁏ ∅ ⊢ A}
         → L —↠ N → Finished N → Steps L
 
-{-# TERMINATING #-}
 eval : Gas → (L : ∅ ⁏ ∅ ⊢ A) → Steps L
 eval (gas zero) L = steps (L end) out-of-gas
 eval (gas (suc x)) L with progress L

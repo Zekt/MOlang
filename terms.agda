@@ -34,19 +34,13 @@ get&inc = dcl {MA = `ℕ} 2+2ᶜ (bnd (get Z) (ret (`suc # 0)))
 
 get&incx : (E : ℳ ⁏ Γ ⊢ `ℕ) → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 get&incx E = dcl {MA = `ℕ} E (bnd (get Z) (ret (`suc # 0)))
---
---prf-get&incx : ∀ (E : (∅ , "counter") ⁏ ∅ ⊢ `ℕ) → (VE : Value (∅ , "counter") E)
---             → ∃[ C ] EvalTo (get&incx E VE) (C ⟪ S ⟫ (∅ ⊗ "counter" ↪ ⟨ E , VE ⟩) ⊗ "counter" ↪ (renameN ⟨ `suc E , V-suc VE ⟩) )
---prf-get&incx E VE = ⟨ ret (`suc E) , evalto
---    (bnd (cmd (get "counter" Z)) (set "counter" Z (`suc ` Z)) ⟪(λ {a} x → x) ⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
---  —↦⟨ ξ-bndcmd (β-get {!!} {!!}) ⟩
---    bnd (cmd (ret E)) (set "counter" Z (`suc ` Z)) ⟪ (λ {a} x → x)⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
---  —↦⟨ β-bndret VE ⟩
---    set "counter" Z (`suc E) ⟪ (λ {a} x → x) ⟫ ∅ ⊗ "counter" ↪ ⟨ E , VE ⟩
---  —↦⟨ β-setret (V-suc VE) ⟩
---    (ret (`suc E) ⟪ (λ {a} x → S x) ⟫ (∅ ⊗ "counter" ↪ ⟨ E , VE ⟩) ⊗ "counter" ↪ renameN (⟨ `suc E , V-suc VE ⟩))
---  stop)
---  (F-ret (V-suc VE)) ⟩
+
+prf-get&incx : ∀ (E : ℳ ⁏ Γ ⊢ `ℕ) → (VE : Value E) → (get&incx E) —↠ (ret (`suc E))
+prf-get&incx E VE = (dcl E (bnd (get Z) (ret (`suc ` Z))))
+                       —→⟨ (ξ-dcl₂ VE) ⟩
+                    (_ —→⟨ (β-bndret VE) ⟩
+                    (ret (`suc E) end))
+
 --data IdIs (Σ : Store) : CState Σ → Id → (Σ ⁏ ∅ ⊢ `ℕ) → Set where
 --  idis : ∀ {PL : ProgramList Σ} {μ : Map Σ} → (name : Id)
 --       → (V : Σ ⁏ ∅ ⊢ `ℕ) → (VE : Value Σ V) → (μ∋i : μ ∋ₘ name ↪ ⟨ V , VE ⟩)
