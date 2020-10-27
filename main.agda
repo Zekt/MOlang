@@ -189,7 +189,6 @@ extₘ ρ Z     = Z
 extₘ ρ (S x) = S (ρ x)
 
 rename : (∀ {A} → Γ ∋ A  → Δ ∋ A)
-       ----------------------------------
        → (∀ {A} → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ ℳ ⁏ Δ ⊢ A)
 rename ρ (` w)        = ` (ρ w)
 rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
@@ -223,7 +222,22 @@ renameₘ σ (get a)      = get (σ a)
 renameₘ σ (getₛ x) = getₛ x
 renameₘ σ (setₛ x E) = setₛ x (renameₘ σ E)
 --renameₘ σ (set a N)    = set (σ a) (renameₘ σ N)
---
+
+renameₛ : (∀ {A} {MA : MType A} → Σ ∋ₛ MA       → Ω ∋ₛ MA)
+        → (∀ {A}                → Σ ⁏ ℳ ⁏ Γ ⊢ A → Ω ⁏ ℳ ⁏ Γ ⊢ A)
+renameₛ τ (` x) = ` x
+renameₛ τ (ƛ N) = ƛ (renameₛ τ N)
+renameₛ τ (L · M) = (renameₛ τ L) · (renameₛ τ M)
+renameₛ τ `zero = `zero
+renameₛ τ (`suc M) = `suc (renameₛ τ M)
+renameₛ τ (case L M N) = case (renameₛ τ L) (renameₛ τ M) (renameₛ τ N)
+renameₛ τ (μ M) = μ (renameₛ τ M)
+renameₛ τ (ret N) = ret (renameₛ τ N)
+renameₛ τ (bnd E C) = bnd (renameₛ τ E) (renameₛ τ C)
+renameₛ τ (dcl N C) = dcl (renameₛ τ N) (renameₛ τ C)
+renameₛ τ (get a) = get a
+renameₛ τ (getₛ x) = getₛ (τ x)
+renameₛ τ (setₛ x E) = setₛ (τ x) (renameₛ τ E)
 ----For now, A in _⁏_⊩_ must be ok.
 --  rename' : ∀ {Σ Ω Γ Δ}
 --          → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
@@ -317,15 +331,28 @@ data Value : Σ ⁏ ℳ ⁏ Γ ⊢ A → Set where
 --shrink `zero VE = `zero
 --shrink (`suc E) (V-suc VE) = shrink E VE
 --shrink (ret E) (V-ret MA VE) = ret (shrink E VE)
-data Map : Set where
-  ∅   : Map
-  _⊗_ : ∀ {E : ∅ ⁏ ∅ ⁏ ∅ ⊢ A} → Map → Value E → Map
+data Map : Shared → Set where
+  ∅   : Map ∅
+  _⊗_ : ∀ {A} {MA : MType A} {E : ∅ ⁏ ∅ ⁏ ∅ ⊢ A} → Map Σ → Value E → Map (Σ ▷ MA)
 
 variable
-  𝕞 : Map
+  𝕞 : Map Σ
 
 data State (Σ : Shared) (ℳ : Memory) (Γ : Context) (A : Type) : Set where
-  _∥_ : Σ ⁏ ℳ ⁏ Γ ⊢ A → Map → State Σ ℳ Γ A
+  _∥_ : Σ ⁏ ℳ ⁏ Γ ⊢ A → Map Σ → State Σ ℳ Γ A
+
+lookupₛ : ∀ {A} {MA : MType A} → Map Σ → Σ ∋ₛ MA → Ω ⁏ ∅ ⁏ ∅ ⊢ A
+lookupₛ (_⊗_ {E = E} 𝕞 VE) Z     = renameₛ (λ ()) E
+lookupₛ (_⊗_ {E = E} 𝕞 VE) (S x) = lookupₛ 𝕞 x
+
+shrink : ∀ {A} {MA : MType A} {E : Σ ⁏ ℳ ⁏ Γ ⊢ A} → Value E → Σ[ E' ∈ ∅ ⁏ ∅ ⁏ ∅ ⊢ A ] Value E'
+shrink V-zero = `zero , V-zero
+shrink (V-suc VE) with shrink {MA = `ℕ} VE
+... | E' , VE'  = `suc _ , V-suc VE'
+
+modify : ∀ {A} {MA : MType A} → Map Σ → Σ ∋ₛ MA → {E : Ω ⁏ ℳ ⁏ Γ ⊢ A} → Value E → Map Σ
+modify {MA = MA} (𝕞 ⊗ VE) Z VE' = 𝕞 ⊗ (proj₂ $ shrink {MA = MA} VE')
+modify (𝕞 ⊗ VE) (S x) VE' = modify 𝕞 x VE' ⊗ VE
 
 data Step : State Σ ℳ Γ A → State Σ ℳ Γ A → Set where
   ξ-·₁ : {L L' : Σ ⁏ ℳ ⁏ Γ ⊢ A ⇒ B} {M : Σ ⁏ ℳ ⁏ Γ ⊢ A}
@@ -398,14 +425,15 @@ data Step : State Σ ℳ Γ A → State Σ ℳ Γ A → Set where
          → Step (dcl E C ∥ 𝕞) (C [ E ]' ∥ 𝕞)
 
   β-getₛ : ∀ {A} {MA : MType A} {x : Σ ∋ₛ MA}
-         → Step (getₛ x ∥ 𝕞) (ret {!!} ∥ 𝕞)
+         → Step (getₛ x ∥ 𝕞) (ret (lookupₛ 𝕞 x) ∥ 𝕞)
 
   β-setₛ : ∀ {A} {MA : MType A} {x : Σ ∋ₛ MA} {E : Σ ⁏ ℳ ⁏ Γ ⊢ A}
-         → Step (setₛ x E ∥ 𝕞) (ret {!!} ∥ {!!})
+         → (VE : Value E)
+         → Step (setₛ x E ∥ 𝕞) (ret E ∥ modify 𝕞 x VE)
 
---  β-dclret : ∀ {E : Σ ⁏ ℳ ⁏ Γ ⊢ A} {E' : Σ ⁏ ℳ ▷ MA ⁏ Γ ⊢ B}
---           → (VE' : Value E')
---           → Step (dcl E (ret {MA = MB} E')) (ret (shrink E' VE'))
+  --β-dclret : ∀ {E : Σ ⁏ ℳ ⁏ Γ ⊢ A} {E' : Σ ⁏ ℳ ▷ MA ⁏ Γ ⊢ B}
+  --         → (VE' : Value E')
+  --         → Step (dcl E (ret {MA = MB} E')) (ret (shrink E' VE'))
 
 --_—→_ : ∀ (L M : ℳ ⁏ Γ ⊢ A) → Set
 --L —→ M = Step L M
