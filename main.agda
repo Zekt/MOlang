@@ -19,6 +19,7 @@ module main where
 infix  4 _⁏_⊢_
 infix  4 _∋_
 infix  4 _∋ₘ_
+infix  4 _∋ₛ_
 infixl 5 _▷_
 infixr 7 _⇒_
 infixl 7 _·_
@@ -45,12 +46,17 @@ data Memory : Set where
   ∅   : Memory
   _▷_ : {T : Type} → Memory → MType T → Memory
 
+data Shared : Set where
+  ∅   : Shared
+  _▷_ : {T : Type} → Shared → MType T → Shared
+
 data Context where
   ∅   : Context
   _▷_ : Context → Type → Context
 
 variable
   ℳ 𝒩 : Memory
+  𝕊 𝕋 : Shared
   Γ Δ : Context
   A B : Type
   MA : MType A
@@ -60,11 +66,16 @@ data _∋ₘ_ {T} : Memory → MType T → Set where
   Z : ℳ ▷ MA ∋ₘ MA
   S : ℳ ∋ₘ MA → ℳ ▷ MB ∋ₘ MA
 
+data _∋ₛ_ {T} : Shared → MType T → Set where
+  Z : 𝕊 ▷ MA ∋ₛ MA
+  S : 𝕊 ∋ₛ MA → 𝕊 ▷ MB ∋ₛ MA
+
 data _∋_ : Context → Type → Set where
   Z : ∀ {Γ A}
     → Γ ▷ A ∋ A
   S : ∀ {Γ A B}
     → Γ ∋ A → Γ ▷ B ∋ A
+
 
 --liftType : MType → Type
 --liftType `ℕ = `ℕ
@@ -127,10 +138,8 @@ data _⁏_⊢_ : Memory → Context → Type → Set where
       → ℳ ∋ₘ MA
       → ℳ ⁏ Γ ⊢ `Cmd MA
 
---  set : ∀ {A} {MA : MType A}
---      → ℳ ∋ₘ MA
---      → ℳ ⁏ Γ ⊢ A
---      → ℳ ⁏ Γ ⊢ `Cmd MA
+  --getₛ
+
 
 
 lookup : Context → ℕ → Type
@@ -295,6 +304,12 @@ data Value : ℳ ⁏ Γ ⊢ A → Set where
 --shrink `zero VE = `zero
 --shrink (`suc E) (V-suc VE) = shrink E VE
 --shrink (ret E) (V-ret MA VE) = ret (shrink E VE)
+data Map : Set where
+  ∅   : Map
+  _⊗_ : ∀ {E : ℳ ⁏ Γ ⊢ A} → Map → Value E → Map
+
+data State (ℳ : Memory) (Γ : Context) (A : Type) : Set where
+  _∥_ : ℳ ⁏ Γ ⊢ A → Map → State ℳ Γ A
 
 data Step : {ℳ : Memory} {Γ : Context} {A : Type} → ℳ ⁏ Γ ⊢ A → ℳ ⁏ Γ ⊢ A → Set where
   ξ-·₁ : {L L' : ℳ ⁏ Γ ⊢ A ⇒ B} {M : ℳ ⁏ Γ ⊢ A}
