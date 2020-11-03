@@ -20,11 +20,12 @@ infix  4 _⁏_⁏_⊢_
 infix  4 _∋_
 infix  4 _∋ₘ_
 infix  4 _∋ₛ_
-infix  4 _∥_
+infix  4 _∥_ _⟫_
 infixl 5 _▷_
 infixr 7 _⇒_
 infixl 7 _·_
-infix  8 `suc_ get_
+infix 7 _⊕_
+infix  8 `suc_ get_ §_
 infix  9 `_
 infix  9 #_
 
@@ -439,9 +440,9 @@ data Step : State Σ ℳ Γ A → State Σ ℳ Γ A → Set where
   --         → (VE' : Value E')
   --         → Step (dcl E (ret {MA = MB} E')) (ret (shrink E' VE'))
 
---_—→_ : ∀ (L M : ℳ ⁏ Γ ⊢ A) → Set
---L —→ M = Step L M
---
+_—→_ : ∀ (L M : State Σ ℳ Γ A) → Set
+L —→ M = Step L M
+
 data Progress (M : Σ ⁏ ℳ ⁏ Γ ⊢ A) (𝕞 : Map Σ) : Set where
   done : Value M → Progress M 𝕞
   step : ∀ {M' : Σ ⁏ ℳ ⁏ Γ ⊢ A} {𝕞' : Map Σ}
@@ -493,52 +494,61 @@ progress (setₛ x E) 𝕞 with progress E 𝕞
 ... | step E—→E′ = step (ξ-setₛ E—→E′)
 ... | done VE    = step (β-setₛ VE)
 
---
+data ProgramList (Σ : Shared) : Set where
+  §_ : Σ ⁏ ∅ ⁏ ∅ ⊢ A → ProgramList Σ
+  _⊕_ : ProgramList Σ → Σ ⁏ ∅ ⁏ ∅ ⊢ A → ProgramList Σ
+
+data CState Σ : Set where
+  _⟫_ : ProgramList Σ → Map Σ → CState Σ
+
+data Step' : CState Σ → CState Σ → Set where
+  head-ξ : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞' Ms} → Step (M ∥ 𝕞) (M' ∥ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms ⊕ M' ⟫ 𝕞')
+  tail-ξ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms Ms' 𝕞 𝕞'} → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms' ⊕ M ⟫ 𝕞')
+
 --infix  2 _—↠_
 --infix  1 start_
 --infixr 2 _—→⟨_⟩_
 --infix  3 _end
 --
---data _—↠_ : ∀ {Σ Γ A} → (Σ ⁏ Γ ⊢ A) → (Σ ⁏ Γ ⊢ A) → Set where
+--data _—↠_ : State Σ ℳ Γ A → State Σ ℳ Γ A → Set where
 --
---  _end : ∀ {Σ Γ A} (M : Σ ⁏ Γ ⊢ A)
+--  _end : (M : State Σ ℳ Γ A)
 --       ------
 --       → M —↠ M
 --
---  _—→⟨_⟩_ : ∀ {Σ Γ A} (L : Σ ⁏ Γ ⊢ A) {M N : Σ ⁏ Γ ⊢ A}
+--  _—→⟨_⟩_ : (L : State Σ ℳ Γ A) {M N : State Σ ℳ Γ A}
 --          → L —→ M
 --          → M —↠ N
---          ------
+-- 
+--         ------
 --          → L —↠ N
 --
 --data Gas : Set where
 --  gas : ℕ → Gas
 --
---start_ : ∀ {Σ Γ A} {M N : Σ ⁏ Γ ⊢ A}
+--start_ : {M N : State Σ ℳ Γ A}
 --       → M —↠ N
---       ------
 --       → M —↠ N
 --start M—↠N = M—↠N
 --
---data Finished {Σ Γ A} (N : Σ ⁏ Γ ⊢ A) : Set where
---  done       : Value N → Finished N
---  out-of-gas : Finished N
+--data Finished {Σ} {ℳ} {Γ} {A} : State Σ ℳ Γ A → Set where
+--  done       : ∀ {V} → Value V → Finished (V ∥ 𝕞)
+--  out-of-gas : ∀ {N} → Finished N
 --
---data Steps : ∀ {Σ A} → Σ ⁏ ∅ ⊢ A → Set where
---  steps : ∀ {Σ A} {L N : Σ ⁏ ∅ ⊢ A}
+--data Steps : State Σ ∅ ∅ A → Set where
+--  steps : ∀ {L N : State Σ ∅ ∅ A}
 --        → L —↠ N → Finished N → Steps L
 --
---eval : Gas → (L : ∅ ⁏ ∅ ⊢ A) → Steps L
+--eval : Gas → (L : State Σ ∅ ∅ A) → Steps L
 --eval (gas zero) L = steps (L end) out-of-gas
---eval (gas (suc x)) L with progress L
+--eval (gas (suc x)) L@(T ∥ 𝕞)  with progress T 𝕞
 --... | done VL   = steps (L end) (done VL)
---... | step {M} L—→M with eval (gas x) M
+--... | step {M} {𝕞'} L—→M with eval (gas x) (M ∥ 𝕞')
 --...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
 
 --data _—↣_ : ∀ {Σ Γ A} → State Σ Γ A → State Σ Γ A → Set where
 --  _stop : ∀ {Σ Γ A} (S : State Σ Γ A)
 --        → S —↣ S
---
 --
 --          → StepS Σ S T
 --          → T —↣ U
