@@ -495,15 +495,27 @@ progress (setₛ x E) 𝕞 with progress E 𝕞
 ... | done VE    = step (β-setₛ VE)
 
 data ProgramList (Σ : Shared) : Set where
-  §_ : Σ ⁏ ∅ ⁏ ∅ ⊢ A → ProgramList Σ
+  §_  : Σ ⁏ ∅ ⁏ ∅ ⊢ A → ProgramList Σ
   _⊕_ : ProgramList Σ → Σ ⁏ ∅ ⁏ ∅ ⊢ A → ProgramList Σ
+
+data Allₚ {Σ} (P : ∀ {A} → Σ ⁏ ∅ ⁏ ∅ ⊢ A → Set) : ProgramList Σ → Set where
+  §ₐ_  : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A}      → P M → Allₚ P (§ M)
+  _⊕ₐ_ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms} → Allₚ P Ms → Allₚ P (Ms ⊕ M)
 
 data CState Σ : Set where
   _⟫_ : ProgramList Σ → Map Σ → CState Σ
 
 data Step' : CState Σ → CState Σ → Set where
-  head-ξ : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞' Ms} → Step (M ∥ 𝕞) (M' ∥ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms ⊕ M' ⟫ 𝕞')
-  tail-ξ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms Ms' 𝕞 𝕞'} → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms' ⊕ M ⟫ 𝕞')
+  head-ξ : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞' Ms}
+         → Step  (M ∥ 𝕞) (M' ∥ 𝕞')   → Step' (Ms ⊕ M ⟫ 𝕞) (Ms ⊕ M' ⟫ 𝕞')
+  tail-ξ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms Ms' 𝕞 𝕞'}
+         → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms' ⊕ M ⟫ 𝕞')
+
+data Progress' (Ms : ProgramList Σ) (𝕞 : Map Σ) : Set where
+  done : Allₚ Value Ms → Progress' Ms 𝕞
+  step : ∀ {Ms' : ProgramList Σ} {𝕞' : Map Σ}
+       → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞')
+       → Progress' Ms 𝕞
 
 --infix  2 _—↠_
 --infix  1 start_
