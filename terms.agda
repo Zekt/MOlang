@@ -5,32 +5,37 @@ open import main
 
 module terms where
 
-sucμ : ∅ ⁏ ∅ ⁏ ∅ ⊢ `ℕ
-sucμ = μ (`suc (# 0))
+_>>=_ : ∀ {A B : Type} {MA : MType A} {MB : MType B}
+      → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
+      → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
+M >>= N = bnd M N
 
-M₂ : ∅ ⁏ ∅ ⁏ ∅ ▷ `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
-M₂ = ƛ (# 1 · (# 1 · # 0))
-
-M : ∅ ⁏ ∅ ⁏ ∅ ▷ `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
-M = # 0
-
-Ch : Type → Type
-Ch A = (A ⇒ A) ⇒ A ⇒ A
-
-twoᶜ : ∀ {Σ ℳ Γ A} → Σ ⁏ ℳ ⁏ Γ ⊢ Ch A
-twoᶜ = ƛ (ƛ (# 1 · (# 1 · # 0)))
-
-plusᶜ : ∀ {Σ ℳ Γ A} → Σ ⁏ ℳ ⁏ Γ ⊢ Ch A ⇒ Ch A ⇒ Ch A
-plusᶜ = ƛ (ƛ (ƛ (ƛ (# 3 · # 1 · (# 2 · # 1 · # 0)))))
-
-sucᶜ : ∀ {Σ ℳ Γ} → Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ ⇒ `ℕ
-sucᶜ = ƛ (`suc (# 0))
-
-2+2ᶜ : ∀ {Σ ℳ Γ} → Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ
-2+2ᶜ = plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero
-
-get&inc : ∀ {Σ ℳ Γ} → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd `ℕ
-get&inc = dcl {MA = `ℕ} 2+2ᶜ (bnd (get Z) (ret (`suc # 0)))
+--sucμ : ∅ ⁏ ∅ ⁏ ∅ ⊢ `ℕ
+--sucμ = μ (`suc (# 0))
+--
+--M₂ : ∅ ⁏ ∅ ⁏ ∅ ▷ `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
+--M₂ = ƛ (# 1 · (# 1 · # 0))
+--
+--M : ∅ ⁏ ∅ ⁏ ∅ ▷ `ℕ ⇒ `ℕ ⊢ `ℕ ⇒ `ℕ
+--M = # 0
+--
+--Ch : Type → Type
+--Ch A = (A ⇒ A) ⇒ A ⇒ A
+--
+--twoᶜ : ∀ {Σ ℳ Γ A} → Σ ⁏ ℳ ⁏ Γ ⊢ Ch A
+--twoᶜ = ƛ (ƛ (# 1 · (# 1 · # 0)))
+--
+--plusᶜ : ∀ {Σ ℳ Γ A} → Σ ⁏ ℳ ⁏ Γ ⊢ Ch A ⇒ Ch A ⇒ Ch A
+--plusᶜ = ƛ (ƛ (ƛ (ƛ (# 3 · # 1 · (# 2 · # 1 · # 0)))))
+--
+--sucᶜ : ∀ {Σ ℳ Γ} → Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ ⇒ `ℕ
+--sucᶜ = ƛ (`suc (# 0))
+--
+--2+2ᶜ : ∀ {Σ ℳ Γ} → Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ
+--2+2ᶜ = plusᶜ · twoᶜ · twoᶜ · sucᶜ · `zero
+--
+--get&inc : ∀ {Σ ℳ Γ} → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd `ℕ
+--get&inc = dcl {MA = `ℕ} 2+2ᶜ (bnd (get Z) (ret (`suc # 0)))
 
 --get&incx : (E : ℳ ⁏ Γ ⊢ `ℕ) → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 --get&incx E = dcl {MA = `ℕ} E (bnd (get Z) (ret (`suc # 0)))
