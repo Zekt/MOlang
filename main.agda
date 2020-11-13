@@ -537,14 +537,11 @@ infix  3 _end
 
 data _—↠_ : CState Σ → CState Σ → Set where
   _end : (M : CState Σ)
-       ------
        → M —↠ M
 
   _—→⟨_⟩_ : (L : CState Σ) {M N : CState Σ}
           → L —→ M
           → M —↠ N
-
-         ------
           → L —↠ N
 
 data Gas : Set where
