@@ -1,5 +1,5 @@
-open import Relation.Binary.PropositionalEquality as Eq
-      using (_≡_; _≢_; refl; cong; cong₂; sym; inspect)
+--open import Relation.Binary.PropositionalEquality as Eq
+--      using (_≡_; _≢_; refl; cong; cong₂; sym; inspect)
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
@@ -337,7 +337,7 @@ data Map : Shared → Set where
   _⊗_ : ∀ {A} {MA : MType A} {E : ∅ ⁏ ∅ ⁏ ∅ ⊢ A} → Map Σ → Value E → Map (Σ ▷ MA)
 
 variable
-  𝕞 𝕞' : Map Σ
+  𝕞 𝕞' 𝕞'' : Map Σ
 
 data State (Σ : Shared) (ℳ : Memory) (Γ : Context) (A : Type) : Set where
   _∥_ : Σ ⁏ ℳ ⁏ Γ ⊢ A → Map Σ → State Σ ℳ Γ A
@@ -499,10 +499,10 @@ data Allₚ {Σ} (P : ∀ {A} → Σ ⁏ ∅ ⁏ ∅ ⊢ A → Set) : ProgramLis
   §ₐ_  : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A}      → P M → Allₚ P (§ M)
   _⊕ₐ_ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms} → Allₚ P Ms → P M → Allₚ P (Ms ⊕ M)
 
-data CState Σ : Set where
-  _⟫_ : ProgramList Σ → Map Σ → CState Σ
+data CState : Map Σ → Set where
+  _⟫_ : ProgramList Σ → (𝕞 : Map Σ) → CState 𝕞
 
-data Step' : CState Σ → CState Σ → Set where
+data Step' : CState 𝕞 → CState 𝕞' → Set where
   head-β : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞'}
          → Step  (M ∥ 𝕞) (M' ∥ 𝕞')   → Step' (§ M ⟫ 𝕞) (§ M' ⟫ 𝕞')
   head-ξ : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞' Ms}
@@ -510,7 +510,7 @@ data Step' : CState Σ → CState Σ → Set where
   tail-ξ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms Ms' 𝕞 𝕞'}
          → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms' ⊕ M ⟫ 𝕞')
 
-_—→_ : ∀ (𝕃 𝕄 : CState Σ) → Set
+_—→_ : ∀ (L : CState 𝕞) (M : CState 𝕞') → Set
 L —→ M = Step' L M
 
 
@@ -535,11 +535,11 @@ infix  1 start_
 infixr 2 _—→⟨_⟩_
 infix  3 _end
 
-data _—↠_ : CState Σ → CState Σ → Set where
-  _end : (M : CState Σ)
+data _—↠_ : CState 𝕞 → CState 𝕞' → Set where
+  _end : (M : CState 𝕞)
        → M —↠ M
 
-  _—→⟨_⟩_ : (L : CState Σ) {M N : CState Σ}
+  _—→⟨_⟩_ : (L : CState 𝕞) {M : CState 𝕞'} {N : CState 𝕞''}
           → L —→ M
           → M —↠ N
           → L —↠ N
@@ -547,20 +547,20 @@ data _—↠_ : CState Σ → CState Σ → Set where
 data Gas : Set where
   gas : ℕ → Gas
 
-start_ : {M N : CState Σ}
+start_ : {M : CState 𝕞} {N : CState 𝕞'}
        → M —↠ N
        → M —↠ N
 start M—↠N = M—↠N
 
-data Finished {Σ} : CState Σ → Set where
+data Finished {Σ} {𝕞 : Map Σ} : CState 𝕞 → Set where
   done       : ∀ {Ms} → Allₚ Value Ms → Finished (Ms ⟫ 𝕞)
   out-of-gas : ∀ {N} → Finished N
 
-data Steps : CState Σ → Set where
-  steps : ∀ {L N : CState Σ}
+data Steps : CState 𝕞 → Set where
+  steps : ∀ {L : CState 𝕞} {N : CState 𝕞'}
         → L —↠ N → Finished N → Steps L
 
-eval : Gas → (L : CState Σ) → Steps L
+eval : Gas → (L : CState 𝕞) → Steps L
 eval (gas zero) L = steps (L end) out-of-gas
 eval (gas (suc x)) L@(T ⟫ 𝕞)  with progress' T 𝕞
 ... | done VL   = steps (L end) (done VL)
