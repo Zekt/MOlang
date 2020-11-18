@@ -3,24 +3,34 @@ open import Relation.Binary.PropositionalEquality as Eq
 open import Data.Product using (_×_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Function using (id; _$_; _∘_)
 open import Data.List using (List; _∷_; [])
+open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Unit using (⊤; tt)
 open import main
 
 module proof where
 
-record Functor (F : Set → Set) : Set₁ where
-  field
-    fmap : ∀ {A B} → (A → B) → F A → F B
+--record Functor (F : Set → Set) : Set₁ where
+  --field
+    --fmap : ∀ {A B} → (A → B) → F A → F B
+--
+  --_<$_ : ∀ {A B} → A → F B → F A
+  --x <$ fb = fmap (λ _ → x) fb
+--
+--open Functor
+--
+--_<$>_ : ∀ {F : Set → Set} {A B} {{FF : Functor F}} → (A → B) → F A → F B
+--_<$>_ {{FF = FF}} f fa = fmap FF f fa
+--
+--Lift : {A : Set} {a : A} {F : A → Set} (P : A → Set) (fa : F a) → Set
+--Lift {A} {a} {F} P fa = P a
 
-  _<$_ : ∀ {A B} → A → F B → F A
-  x <$ fb = fmap (λ _ → x) fb
+Allₛ : ∀ {L : CState 𝕞} {M : CState 𝕞'} → (∀ {Σ} → Map Σ → Set) → L —↠ M → Set
+Allₛ P (x ⟫ 𝕞 end) = P 𝕞
+Allₛ P (x ⟫ 𝕞 —→⟨ L—→M ⟩ M—↠N) = P 𝕞 × Allₛ P M—↠N
 
-open Functor
-
-_<$>_ : ∀ {F : Set → Set} {A B} {{FF : Functor F}} → (A → B) → F A → F B
-_<$>_ {{FF = FF}} f fa = fmap FF f fa
-
-Lift : {A : Set} {a : A} {F : A → Set} (P : A → Set) (fa : F a) → Set
-Lift {A} {a} {F} P fa = P a
+Always : ∀ {Σ} {𝕞 : Map Σ} → (∀ {Σ} → Map Σ → Set) → CState 𝕞 → Gas → Set
+Always P cs g with eval g cs
+... | steps L—↠M FN = Allₛ P L—↠M
 
 _>>_ : ∀ {A B : Type} {MA : MType A} {MB : MType B}
       → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
@@ -49,22 +59,24 @@ get&inc : ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd `ℕ
 get&inc = dcl {MA = `ℕ} 2+2ᶜ (do get Z
                                  ret (`suc # 0))
 
-get&incₛ : (∅ ▷ `ℕ) ⁏ ∅ ⁏ ∅ ⊢ `Cmd `ℕ
+get&incₛ : (∅ ▷ `ℕ ▷ `ℕ) ⁏ ∅ ⁏ ∅ ⊢ `Cmd `ℕ
 get&incₛ = do getₛ Z
               setₛ Z (`suc # 0)
 
 emptyMap : Map ∅
 emptyMap = ∅
 
-oneMap : Map (∅ ▷ `ℕ)
-oneMap = ∅ ⊗ V-suc (V-suc V-zero)
+oneMap : Map (∅ ▷ `ℕ ▷ `ℕ)
+oneMap = (∅ ⊗ V-suc (V-suc V-zero)) ⊗ (V-suc (V-suc V-zero))
 
 cstate = § get&inc ⟫ emptyMap
 
-cstate2 = § get&incₛ ⟫ oneMap
+cstate2 = (§ get&incₛ ⊕ get&incₛ) ⊕ get&incₛ ⟫ oneMap
 
-Has2InMap : Map (∅ ▷ `ℕ) → Set
-Has2InMap (_⊗_ {E = E} ∅ x) = E ≡ `suc `suc `zero
+Has2InMap : ∀ {Σ} → Map Σ → Set
+Has2InMap (_⊗_ {E = `suc `suc `zero} M VE) = ⊤
+Has2InMap ∅ = ⊥
+Has2InMap (_⊗_ {E = _} M VE) = Has2InMap M
 
-Cstate2Has2InMap : Lift {F = CState} Has2InMap cstate2
-Cstate2Has2InMap = refl
+Cstate2Has2InMap : Always Has2InMap cstate2 (gas 100)
+Cstate2Has2InMap = {!!}
