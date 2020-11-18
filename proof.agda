@@ -19,10 +19,8 @@ open Functor
 _<$>_ : ∀ {F : Set → Set} {A B} {{FF : Functor F}} → (A → B) → F A → F B
 _<$>_ {{FF = FF}} f fa = fmap FF f fa
 
-record Lift {A : Set} {F : Set → Set} {{FF : Functor F}} (P : A → Set) (fa : F A) : Set where
-  field
-    witness     : F (Σ[ a ∈ A ] P a)
-    corresponds : fa ≡ (proj₁ <$> witness)
+Lift : {A : Set} {a : A} {F : A → Set} (P : A → Set) (fa : F a) → Set
+Lift {A} {a} {F} P fa = P a
 
 _>>_ : ∀ {A B : Type} {MA : MType A} {MB : MType B}
       → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
@@ -51,7 +49,22 @@ get&inc : ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd `ℕ
 get&inc = dcl {MA = `ℕ} 2+2ᶜ (do get Z
                                  ret (`suc # 0))
 
+get&incₛ : (∅ ▷ `ℕ) ⁏ ∅ ⁏ ∅ ⊢ `Cmd `ℕ
+get&incₛ = do getₛ Z
+              setₛ Z (`suc # 0)
+
 emptyMap : Map ∅
 emptyMap = ∅
 
+oneMap : Map (∅ ▷ `ℕ)
+oneMap = ∅ ⊗ V-suc (V-suc V-zero)
+
 cstate = § get&inc ⟫ emptyMap
+
+cstate2 = § get&incₛ ⟫ oneMap
+
+Has2InMap : Map (∅ ▷ `ℕ) → Set
+Has2InMap (_⊗_ {E = E} ∅ x) = E ≡ `suc `suc `zero
+
+Cstate2Has2InMap : Lift {F = CState} Has2InMap cstate2
+Cstate2Has2InMap = refl
