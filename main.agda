@@ -5,7 +5,8 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Unit using (⊤; tt)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
-open import Data.List using (List; _∷_; [])
+open import Data.List using (List; _∷_; []; all)
+open import Data.List.All using (All)
 open import Data.List.NonEmpty using (List⁺; _∷⁺_)
 open import Data.Product using (_×_; _,_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂)
 open import Function using (id; _$_; _∘_)
@@ -502,6 +503,8 @@ data Allₚ {Σ} (P : ∀ {A} → Σ ⁏ ∅ ⁏ ∅ ⊢ A → Set) : ProgramLis
 data CState : Map Σ → Set where
   _⟫_ : ProgramList Σ → (𝕞 : Map Σ) → CState 𝕞
 
+CStates = List (∀ {Σ} {𝕞 : Map Σ} → CState 𝕞)
+
 data Step' : CState 𝕞 → CState 𝕞' → Set where
   head-β : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞'}
          → Step  (M ∥ 𝕞) (M' ∥ 𝕞')   → Step' (§ M ⟫ 𝕞) (§ M' ⟫ 𝕞')
@@ -510,62 +513,67 @@ data Step' : CState 𝕞 → CState 𝕞' → Set where
   tail-ξ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms Ms' 𝕞 𝕞'}
          → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms' ⊕ M ⟫ 𝕞')
 
-_—→_ : ∀ (L : CState 𝕞) (M : CState 𝕞') → Set
-L —→ M = Step' L M
+data Tree (A : Set) : Set where
+  node : A → List (Tree A) → Tree A
 
+AllStep' : Tree (∀ {Σ} {𝕞 : Map Σ} → CState 𝕞) → Set
 
-data Progress' (P : ProgramList Σ) (𝕞 : Map Σ) : Set where
-  done : Allₚ Value P → Progress' P 𝕞
-  step : ∀ {P' : ProgramList Σ} {𝕞' : Map Σ}
-       → Step' (P ⟫ 𝕞) (P' ⟫ 𝕞')
-       → Progress' P 𝕞
-
-progress' : (P : ProgramList Σ) → (𝕞 : Map Σ) → Progress' P 𝕞
-progress' (§ M) 𝕞 with progress M 𝕞
-... | done VM = done (§ₐ VM)
-... | step M—→M' = step (head-β M—→M')
-progress' (Ms ⊕ M) 𝕞 with progress' Ms 𝕞
-... | step Ms—→Ms' = step (tail-ξ Ms—→Ms')
-... | done AVM with progress M 𝕞
-...   | done VM = done (AVM ⊕ₐ VM)
-...   | step M—→M' = step (head-ξ M—→M')
-
-infix  2 _—↠_
-infix  1 start_
-infixr 2 _—→⟨_⟩_
-infix  3 _end
-
-data _—↠_ : CState 𝕞 → CState 𝕞' → Set where
-  _end : (M : CState 𝕞)
-       → M —↠ M
-
-  _—→⟨_⟩_ : (L : CState 𝕞) {M : CState 𝕞'} {N : CState 𝕞''}
-          → L —→ M
-          → M —↠ N
-          → L —↠ N
-
-data Gas : Set where
-  gas : ℕ → Gas
-
-start_ : {M : CState 𝕞} {N : CState 𝕞'}
-       → M —↠ N
-       → M —↠ N
-start M—↠N = M—↠N
-
-data Finished {Σ} {𝕞 : Map Σ} : CState 𝕞 → Set where
-  done       : ∀ {Ms} → Allₚ Value Ms → Finished (Ms ⟫ 𝕞)
-  out-of-gas : ∀ {N} → Finished N
-
-data Steps : CState 𝕞 → Set where
-  steps : ∀ {L : CState 𝕞} {N : CState 𝕞'}
-        → L —↠ N → Finished N → Steps L
-
-eval : Gas → (L : CState 𝕞) → Steps L
-eval (gas zero) L = steps (L end) out-of-gas
-eval (gas (suc x)) L@(T ⟫ 𝕞)  with progress' T 𝕞
-... | done VL   = steps (L end) (done VL)
-... | step {M} {𝕞'} L—→M with eval (gas x) (M ⟫ 𝕞')
-...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
+--_—→_ : ∀ (L : CState 𝕞) (M : CState 𝕞') → Set
+--L —→ M = Step' L M
+--
+--
+--data Progress' (P : ProgramList Σ) (𝕞 : Map Σ) : Set where
+--  done : Allₚ Value P → Progress' P 𝕞
+--  step : ∀ {P' : ProgramList Σ} {𝕞' : Map Σ}
+--       → Step' (P ⟫ 𝕞) (P' ⟫ 𝕞')
+--       → Progress' P 𝕞
+--
+--progress' : (P : ProgramList Σ) → (𝕞 : Map Σ) → Progress' P 𝕞
+--progress' (§ M) 𝕞 with progress M 𝕞
+--... | done VM = done (§ₐ VM)
+--... | step M—→M' = step (head-β M—→M')
+--progress' (Ms ⊕ M) 𝕞 with progress' Ms 𝕞
+--... | step Ms—→Ms' = step (tail-ξ Ms—→Ms')
+--... | done AVM with progress M 𝕞
+--...   | done VM = done (AVM ⊕ₐ VM)
+--...   | step M—→M' = step (head-ξ M—→M')
+--
+--infix  2 _—↠_
+--infix  1 start_
+--infixr 2 _—→⟨_⟩_
+--infix  3 _end
+--
+--data _—↠_ : CState 𝕞 → CState 𝕞' → Set where
+--  _end : (M : CState 𝕞)
+--       → M —↠ M
+--
+--  _—→⟨_⟩_ : (L : CState 𝕞) {M : CState 𝕞'} {N : CState 𝕞''}
+--          → L —→ M
+--          → M —↠ N
+--          → L —↠ N
+--
+--data Gas : Set where
+--  gas : ℕ → Gas
+--
+--start_ : {M : CState 𝕞} {N : CState 𝕞'}
+--       → M —↠ N
+--       → M —↠ N
+--start M—↠N = M—↠N
+--
+--data Finished {Σ} {𝕞 : Map Σ} : CState 𝕞 → Set where
+--  done       : ∀ {Ms} → Allₚ Value Ms → Finished (Ms ⟫ 𝕞)
+--  out-of-gas : ∀ {N} → Finished N
+--
+--data Steps : CState 𝕞 → Set where
+--  steps : ∀ {L : CState 𝕞} {N : CState 𝕞'}
+--        → L —↠ N → Finished N → Steps L
+--
+--eval : Gas → (L : CState 𝕞) → Steps L
+--eval (gas zero) L = steps (L end) out-of-gas
+--eval (gas (suc x)) L@(T ⟫ 𝕞)  with progress' T 𝕞
+--... | done VL   = steps (L end) (done VL)
+--... | step {M} {𝕞'} L—→M with eval (gas x) (M ⟫ 𝕞')
+--...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
 
 --data _—↣_ : ∀ {Σ Γ A} → State Σ Γ A → State Σ Γ A → Set where
 --  _stop : ∀ {Σ Γ A} (S : State Σ Γ A)
