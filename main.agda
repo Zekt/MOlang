@@ -516,14 +516,16 @@ data Step' : CState 𝕞 → CState 𝕞' → Set where
   tail-ξ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms Ms' 𝕞 𝕞'}
          → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞') → Step' (Ms ⊕ M ⟫ 𝕞) (Ms' ⊕ M ⟫ 𝕞')
 
-data StateTree : Set where
-  node : CState 𝕞 → List (Tree A) → Tree A
+data StateList : ℕ → Set where
+  base : CState 𝕞 → StateList zero
+  head : ∀ {N} → StateList N → StateList (suc N)
+  cons : ∀ {N} → StateList N → StateList (suc N) → StateList (suc N)
 
 data AllStep' : CState 𝕞 → CStates → Set where
   §ₛ : ∀ {Σ} {𝕞 : Map Σ} {c : CState 𝕞} {c' : CState 𝕞'} → Step' c c' → AllStep' c (§ c')
   _⊕ₛ_ : ∀ {Σ Σ'} {𝕞 : Map Σ} {𝕞' : Map Σ'}
            {c : CState 𝕞} {c' : CState 𝕞'} {c's : CStates}
-        → Step' c c' → AllStep' c c's → AllStep' c (c' ⊕ c's)
+       → Step' c c' → AllStep' c c's → AllStep' c (c' ⊕ c's)
 
 _—→_ : ∀ (L : CState 𝕞) (M : CState 𝕞') → Set
 L —→ M = Step' L M
@@ -534,10 +536,9 @@ data Progress' (P : ProgramList Σ) (𝕞 : Map Σ) : Set where
        → Step' (P ⟫ 𝕞) (P' ⟫ 𝕞')
        → Progress' P 𝕞
 
---data Progressₙ (P : ProgramList Σ) (𝕞 : Map Σ) : Set where
---  done : Allₚ Value P → Progressₙ P 𝕞
---  step : (L : List ({Σ : Shared} {𝕞' : Map Σ} → CState 𝕞')) → All (Step' {{!!}} {{!!}} {!!}) {!L!}
---       → Progressₙ P 𝕞
+data Progressₙ {N : ℕ} (s : StateList N) : Set where
+
+allprogress : ∀ {N} → (s : StateList N) → Progressₙ s
 
 progress' : (P : ProgramList Σ) → (𝕞 : Map Σ) → Progress' P 𝕞
 progress' (§ M) 𝕞 with progress M 𝕞
