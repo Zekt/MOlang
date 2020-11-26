@@ -503,20 +503,29 @@ data CStates : Set where
   §ᶜ_  : CState 𝕞 → CStates
   _∷ᶜ_ : CStates → CState 𝕞 → CStates
 
-data StateList : ℕ → ℕ → Set where
-  base : CState 𝕞 → StateList zero 1
-  head : ∀ {N n} → StateList N n → StateList (suc N) 1
-  cons : ∀ {N m n} → StateList N m → StateList (suc N) n → StateList (suc N) (suc n)
+data StateList : ℕ → Set where
+  base : CState 𝕞 → StateList zero
+  head : ∀ {N} → StateList N → StateList (suc N)
+  snoc : ∀ {N} → StateList (suc N) → StateList N → StateList (suc N)
 
 data Allₚ {Σ} (P : ∀ {A} → Σ ⁏ ∅ ⁏ ∅ ⊢ A → Set) : ProgramList Σ → Set where
   §ₚ_  : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A}      → P M → Allₚ P (§ᵖ M)
   _⊗ₚ_ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms} → Allₚ P Ms → P M → Allₚ P (Ms ∷ᵖ M)
 
-data Allₛ {M} (P : ∀ {N} → StateList M N → Set) : ∀ {N} → StateList (suc M) N → Set where
-  §ₛ_  : ∀ {N} {s : StateList M N}
+data Allₛ {M} (P : StateList M → Set) : StateList (suc M) → Set where
+  §ₛ_  : {s : StateList M}
        → P s → Allₛ P (head s)
-  _⊗ₛ_ : ∀ {N} {s : StateList M N} {ss : StateList (suc M) N}
-       → Allₛ P ss → P s → Allₛ P (cons s ss)
+  _⊗ₛ_ : {s : StateList M} {ss : StateList (suc M)}
+       → Allₛ P ss → P s → Allₛ P (snoc ss s)
+
+-- Recursive All for StateList.
+data RAll (P : ∀ {Σ} {𝕞 : Map Σ} → CState 𝕞 → Set) : {M : ℕ} → StateList M → Set where
+  base : ∀ {Σ} {𝕞 : Map Σ} {cs : CState 𝕞}
+      → P cs → RAll P (base cs)
+  head : ∀ {M} {s : StateList M}
+       → RAll P s → RAll P (head s)
+  snoc : ∀ {M} {s : StateList M} {ss}
+       → RAll P ss → RAll P s → RAll P (snoc ss s)
 
 data Step' : CState 𝕞 → CState 𝕞' → Set where
   head-β : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞'}
@@ -532,30 +541,34 @@ data AllStep' : CState 𝕞 → CStates → Set where
            {c : CState 𝕞} {c' : CState 𝕞'} {c's : CStates}
        → Step' c c' → AllStep' c c's → AllStep' c (c's ∷ᶜ c')
 
-data CStep : {M N : ℕ} → StateList M N →  StateList (suc M) N → Set where
-  base : ∀ {𝕞 𝕞' : Map Σ} {x : CState 𝕞} {y : CState 𝕞'}
-       → Step' x y → CStep (base x) (head (base y))
-  head : ∀ {M N} {s : StateList M N} {t : StateList (suc M) N}
-       → CStep s t → CStep (head s) (head t)
-  cons : ∀ {M N} {s : StateList M N} {t : StateList (suc M) N}
-           {ss : StateList (suc M) N} {ts}
-       → CStep s t → CStep ss ts → CStep (cons s ss) (cons t ts)
+--data CStep : {M : ℕ} → StateList M → StateList (suc M) → Set where
+--  base : ∀ {𝕞 𝕞' : Map Σ} {x : CState 𝕞} {y : CState 𝕞'}
+--       → Step' x y → CStep (base x) (head (base y))
+--  head : ∀ {M} {s : StateList M} {t : StateList (suc M)}
+--       → CStep s t → CStep (head s) (head t)
+--  snoc : ∀ {M} {s : StateList M} {t : StateList (suc M)}
+--           {ss : StateList (suc M)} {ts}
+--       → CStep ss ts → CStep s t → CStep (snoc ss s) (snoc ts t)
 --CStep (base x) s+ = Allₛ (λ {(base y) → Step' x y}) s+
 --CStep (head s) (head t) = CStep s {!!}
 --CStep (cons s ss) s+ = {!!}
 
-allpos : CState 𝕞 → CStates
+allpos : CState 𝕞 → StateList 1
 allpos cs@((§ᵖ N) ⟫ 𝕞) with progress N 𝕞
-... | done VN = §ᶜ cs
-... | step {M' = N'} {𝕞' = 𝕞'} N→N' = §ᶜ ((§ᵖ N') ⟫ 𝕞')
+... | done VN = head (base cs)
+... | step {M' = N'} {𝕞' = 𝕞'} N→N' = head (base ((§ᵖ N') ⟫ 𝕞'))
 allpos ((Ns ∷ᵖ N) ⟫ 𝕞) with allpos (Ns ⟫ 𝕞) | progress N 𝕞
-... | cs | done VN   = cs ∷ᶜ ((§ᵖ N) ⟫ 𝕞)
-... | cs | step {M' = N'} {𝕞' = 𝕞'} N→N' = cs ∷ᶜ ((§ᵖ N') ⟫ 𝕞')
+... | cs | done VN  = snoc cs (base (Ns ⟫ 𝕞))-- cs ∷ᶜ ((§ᵖ N) ⟫ 𝕞)
+... | cs | step {M' = N'} {𝕞' = 𝕞'} N→N' = snoc cs (base ((§ᵖ N') ⟫ 𝕞')) -- cs ∷ᶜ ((§ᵖ N') ⟫ 𝕞')
 
-comp : ∀ {M N} → StateList M N → StateList (suc M) N
-comp (base x) = {!!}
-comp (head s) = {!!}
-comp (cons s s₁) = {!!}
+-- CStep should be 'full'.
+data CStep : ∀ {M : ℕ} → StateList M → StateList (suc M) → Set where
+  base : ∀ {Σ} {𝕞 : Map Σ} {cs : CState 𝕞}
+       → CStep (base cs) (allpos cs)
+  head : ∀ {M} {s : StateList M} {t}
+       → CStep s t → CStep (head s) (head t)
+  snoc : ∀ {M} {s : StateList M} {t ss ts}
+       → CStep ss ts → CStep s t → CStep (snoc ss s) (snoc ts t)
 
 _—→_ : ∀ (L : CState 𝕞) (M : CState 𝕞') → Set
 L —→ M = Step' L M
@@ -566,9 +579,13 @@ data Progress' (P : ProgramList Σ) (𝕞 : Map Σ) : Set where
        → Step' (P ⟫ 𝕞) (P' ⟫ 𝕞')
        → Progress' P 𝕞
 
-data Progressₙ : {M N : ℕ} (s : StateList M N) → Set where
-  base-progress : ∀ {Σ} {P : ProgramList Σ} {𝕞 : Map Σ}
-                → Progress' P 𝕞 → Progressₙ (base (P ⟫ 𝕞))
+data Progressₙ {M : ℕ} (s : StateList M) : Set where
+  done : RAll (λ {(P ⟫ 𝕞) → Allₚ Value P}) s → Progressₙ s
+  step : ∀ {t} → CStep s t → Progressₙ s
+--  head-step : ∀ {M} {s : StateList M}
+--            → Progressₙ s → Progressₙ (head s)
+--  snoc-step : ∀ {M} {s : StateList M} {ss}
+--            → Progressₙ s → Progressₙ (snoc ss s)
 
 --allprogress : ∀ {N} → (s : StateList N) → Progressₙ s
 
@@ -581,6 +598,24 @@ progress' (Ms ∷ᵖ M) 𝕞 with progress' Ms 𝕞
 ... | done AVM with progress M 𝕞
 ...   | done VM = done (AVM ⊗ₚ VM)
 ...   | step M—→M' = step (head-ξ M—→M')
+
+progressₙ : {M : ℕ} → (s : StateList M) → Progressₙ s
+progressₙ (base (P ⟫ 𝕞)) with progress' P 𝕞
+... | done AVP = done (base AVP)
+... | step P→P' = step base
+progressₙ (head s) with progressₙ s
+... | done AVs = done (head AVs)
+... | step s→t = step (head s→t)
+progressₙ (snoc ss s) with progressₙ ss | progressₙ s
+progressₙ (snoc ss s) | done V1 | done V2 = done (snoc V1 V2)
+progressₙ (snoc ss s) | done V | step s→t = step (snoc {!!} {!!})
+progressₙ (snoc ss s) | step x | res2 = {!!}
+--progressₙ (base (P ⟫ 𝕞)) with progress' P 𝕞
+--... | pg = base-step pg
+--progressₙ (head s) with progressₙ s
+--... | pg = head-step pg
+--progressₙ (snoc ss s) with progressₙ s
+--... | pg = snoc-step pg
 
 infix  2 _—↠_
 infix  1 start_
