@@ -24,13 +24,13 @@ module proof where
 --Lift : {A : Set} {a : A} {F : A → Set} (P : A → Set) (fa : F a) → Set
 --Lift {A} {a} {F} P fa = P a
 
-Allₛ : ∀ {L : CState 𝕞} {M : CState 𝕞'} → (∀ {Σ} → Map Σ → Set) → L —↠ M → Set
-Allₛ P (x ⟫ 𝕞 end) = P 𝕞
-Allₛ P (x ⟫ 𝕞 —→⟨ L—→M ⟩ M—↠N) = P 𝕞 × Allₛ P M—↠N
+All : ∀ {L : CState 𝕞} {M : CState 𝕞'} → (∀ {Σ} → Map Σ → Set) → L —↠ M → Set
+All P (x ⟫ 𝕞 end) = P 𝕞
+All P (x ⟫ 𝕞 —→⟨ L—→M ⟩ M—↠N) = P 𝕞 × All P M—↠N
 
 Always : ∀ {Σ} {𝕞 : Map Σ} → (∀ {Σ} → Map Σ → Set) → CState 𝕞 → Gas → Set
 Always P cs g with eval g cs
-... | steps L—↠M FN = Allₛ P L—↠M
+... | steps L—↠M FN = All P L—↠M
 
 _>>_ : ∀ {A B : Type} {MA : MType A} {MB : MType B}
       → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
@@ -69,9 +69,9 @@ emptyMap = ∅
 oneMap : Map (∅ ▷ `ℕ ▷ `ℕ)
 oneMap = (∅ ⊗ V-suc (V-suc V-zero)) ⊗ (V-suc (V-suc V-zero))
 
-cstate = § get&inc ⟫ emptyMap
+cstate = §ᵖ get&inc ⟫ emptyMap
 
-cstate2 = (§ get&incₛ ⊕ get&incₛ) ⊕ get&incₛ ⟫ oneMap
+cstate2 = (§ᵖ get&incₛ ∷ᵖ get&incₛ) ∷ᵖ get&incₛ ⟫ oneMap
 
 Has2InMap : ∀ {Σ} → Map Σ → Set
 Has2InMap (_⊗_ {E = `suc `suc `zero} M VE) = ⊤

@@ -25,8 +25,8 @@ infix  4 _∥_ _⟫_
 infixl 5 _▷_
 infixr 7 _⇒_
 infixl 7 _·_
-infix 7 _⊕_
-infix  8 `suc_ get_ §_
+infix 7 _⊕_ _⊕ᶜ_ _∷ᶜ_ _∷ᵖ_
+infix  8 `suc_ get_ §ᶜ_ §ᵖ_
 infix  9 `_
 infix  9 #_
 
@@ -552,6 +552,8 @@ data AllStep' : CState 𝕞 → CStates → Set where
 --CStep (base x) s+ = Allₛ (λ {(base y) → Step' x y}) s+
 --CStep (head s) (head t) = CStep s {!!}
 --CStep (cons s ss) s+ = {!!}
+AllStateValue : ∀ {M} → StateList M → Set
+AllStateValue ss = RAll (λ {(P ⟫ 𝕞) → Allₚ Value P}) ss
 
 allpos : CState 𝕞 → StateList 1
 allpos cs@((§ᵖ N) ⟫ 𝕞) with progress N 𝕞
@@ -569,6 +571,10 @@ data CStep : ∀ {M : ℕ} → StateList M → StateList (suc M) → Set where
        → CStep s t → CStep (head s) (head t)
   snoc : ∀ {M} {s : StateList M} {t ss ts}
        → CStep ss ts → CStep s t → CStep (snoc ss s) (snoc ts t)
+  init : ∀ {M} {ss : StateList (suc M)} {s ts}
+       → CStep ss ts → AllStateValue s → CStep (snoc ss s) (snoc ts (head s))
+  last : ∀ {M} {ss : StateList (suc M)} {s t}
+       → AllStateValue ss → CStep s t → CStep (snoc ss s) (snoc (head ss) t)
 
 _—→_ : ∀ (L : CState 𝕞) (M : CState 𝕞') → Set
 L —→ M = Step' L M
@@ -580,7 +586,7 @@ data Progress' (P : ProgramList Σ) (𝕞 : Map Σ) : Set where
        → Progress' P 𝕞
 
 data Progressₙ {M : ℕ} (s : StateList M) : Set where
-  done : RAll (λ {(P ⟫ 𝕞) → Allₚ Value P}) s → Progressₙ s
+  done : AllStateValue s → Progressₙ s
   step : ∀ {t} → CStep s t → Progressₙ s
 --  head-step : ∀ {M} {s : StateList M}
 --            → Progressₙ s → Progressₙ (head s)
@@ -608,8 +614,9 @@ progressₙ (head s) with progressₙ s
 ... | step s→t = step (head s→t)
 progressₙ (snoc ss s) with progressₙ ss | progressₙ s
 progressₙ (snoc ss s) | done V1 | done V2 = done (snoc V1 V2)
-progressₙ (snoc ss s) | done V | step s→t = step (snoc {!!} {!!})
-progressₙ (snoc ss s) | step x | res2 = {!!}
+progressₙ (snoc ss s) | done Vss | step s→t = step (last Vss s→t)
+progressₙ (snoc ss s) | step ss→ | done Vs = step (init ss→ Vs)
+progressₙ (snoc ss s) | step ss→ | step s→ = step (snoc ss→ s→)
 --progressₙ (base (P ⟫ 𝕞)) with progress' P 𝕞
 --... | pg = base-step pg
 --progressₙ (head s) with progressₙ s
