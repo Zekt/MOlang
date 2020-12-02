@@ -103,7 +103,7 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
      → Σ ⁏ ℳ ⁏ Γ ⊢ A
 
   ƛ : Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ B
-    → Σ ⁏ ℳ ⁏ Γ ⊢ A ⇒ B
+    → Σ ⁏ ℳ ⁏ Γ     ⊢ A ⇒ B
 
   -- ⇒-E
   _·_ : Σ ⁏ ℳ ⁏ Γ ⊢ A ⇒ B
@@ -114,29 +114,40 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
   `zero : Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ
 
   -- ℕ-I₂
-  `suc_ : Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ → Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ
+  `suc_ : Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ
+        → Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ
 
   -- ℕ-E
-  case : Σ ⁏ ℳ ⁏ Γ ⊢ `ℕ  → Σ ⁏ ℳ ⁏ Γ ⊢ A  → Σ ⁏ ℳ ⁏ Γ ▷ `ℕ ⊢ A
-       → Σ ⁏ ℳ ⁏ Γ ⊢ A
+  case : Σ ⁏ ℳ ⁏ Γ      ⊢ `ℕ
+       → Σ ⁏ ℳ ⁏ Γ      ⊢ A
+       → Σ ⁏ ℳ ⁏ Γ ▷ `ℕ ⊢ A
+       → Σ ⁏ ℳ ⁏ Γ      ⊢ A
 
   μ_ : Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ A
-     → Σ ⁏ ℳ ⁏ Γ ⊢ A
+     → Σ ⁏ ℳ ⁏ Γ     ⊢ A
 
-  --□-intro?
+  -- □-intro?
+  -- It's more likely ⋄-intro, since computations can be seem as possibly-something.
+  -- E.g. to get an int can be seem as a witness to "possible int".
+  -- Since we have A, A is definitely possible.
   ret : ∀ {A} {MA : MType A}
       → Σ ⁏ ℳ ⁏ Γ ⊢ A
       → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
 
+  -- Modus ponens for modality. Possible A and that A implies possible B derives possible B.
   bnd : ∀ {A B} {MA : MType A} {MB : MType B}
-     → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
-     → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
+     → Σ ⁏ ℳ ⁏ Γ     ⊢ `Cmd MA
+     → Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB
+     → Σ ⁏ ℳ ⁏ Γ     ⊢ `Cmd MB
 
   --□-elim? □-elimₚ?
+  --A, A ⊢ ⋄B ∣ ⋄B, what's the difference?
   dcl : ∀ {A B} {MA : MType A} {MB : MType B}
-     → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB
-     → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
+     → Σ ⁏      ℳ ⁏ Γ ⊢ A
+     → Σ ⁏ ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB
+     → Σ ⁏      ℳ ⁏ Γ ⊢ `Cmd MB
 
+  --"possible" something
   get_ : ∀ {A} {MA : MType A}
        → ℳ ∋ₘ MA
        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
@@ -146,7 +157,8 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
 
   setₛ : ∀ {A} {MA : MType A}
-       → Σ ∋ₛ MA → Σ ⁏ ℳ ⁏ Γ ⊢ A
+       → Σ ∋ₛ MA
+       → Σ ⁏ ℳ ⁏ Γ ⊢ A
        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
 
 lookup : Context → ℕ → Type
@@ -185,7 +197,7 @@ ext : (∀ {A}   → Γ ∋ A     → Δ ∋ A)
 ext ρ Z     = Z
 ext ρ (S x) = S (ρ x)
 
-extₘ : (∀ {A}   {MA : MType A}                → ℳ ∋ₘ MA      → 𝒩 ∋ₘ MA)
+extₘ : (∀ {A}   {MA : MType A}                →      ℳ ∋ₘ MA →      𝒩 ∋ₘ MA)
      → (∀ {A B} {MA : MType A} {MB : MType B} → ℳ ▷ MB ∋ₘ MA → 𝒩 ▷ MB ∋ₘ MA)
 extₘ ρ Z     = Z
 extₘ ρ (S x) = S (ρ x)
@@ -256,7 +268,7 @@ ext- : Σ ⁏ ℳ ⁏ Γ ⊢ A
      → Σ ⁏ ℳ ⁏ Γ ▷ B ⊢ A
 ext- N = rename S N
 
-exts : (∀ {A}   →     Γ ∋ A → Σ ⁏ ℳ ⁏ Δ ⊢ A)
+exts : (∀ {A}   →     Γ ∋ A → Σ ⁏ ℳ ⁏     Δ ⊢ A)
      → (∀ {A B} → Γ ▷ B ∋ A → Σ ⁏ ℳ ⁏ Δ ▷ B ⊢ A)
 exts ρ Z     = ` Z
 exts ρ (S x) = rename S (ρ x)
@@ -265,7 +277,7 @@ exts' : Σ ⁏ ℳ ⁏ Δ ⊢ A
       → Σ ⁏ ℳ ▷ MB ⁏ Δ ⊢ A
 exts' N = renameₘ S N
 
-extsₘ : (∀ {A}   {MA : MType A}                → ℳ      ∋ₘ MA  → Σ ⁏ 𝒩      ⁏ Γ ⊢ `Cmd MA)
+extsₘ : (∀ {A}   {MA : MType A}                →      ℳ ∋ₘ MA  → Σ ⁏      𝒩 ⁏ Γ ⊢ `Cmd MA)
       → (∀ {A B} {MA : MType A} {MB : MType B} → ℳ ▷ MB ∋ₘ MA  → Σ ⁏ 𝒩 ▷ MB ⁏ Γ ⊢ `Cmd MA)
 extsₘ σ Z = get Z
 extsₘ σ (S x) = renameₘ S (σ x)
@@ -509,37 +521,49 @@ data StateList : ℕ → Set where
   snoc : ∀ {N} → StateList (suc N) → StateList N → StateList (suc N)
 
 data Allₚ {Σ} (P : ∀ {A} → Σ ⁏ ∅ ⁏ ∅ ⊢ A → Set) : ProgramList Σ → Set where
-  §ₚ_  : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A}      → P M → Allₚ P (§ᵖ M)
-  _⊗ₚ_ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms} → Allₚ P Ms → P M → Allₚ P (Ms ∷ᵖ M)
+  §ₚ_  : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A}
+       → P M
+       → Allₚ P (§ᵖ M)
+  _⊗ₚ_ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms}
+       → Allₚ P Ms → P M
+       → Allₚ P (Ms ∷ᵖ M)
 
 data Allₛ {M} (P : StateList M → Set) : StateList (suc M) → Set where
   §ₛ_  : {s : StateList M}
-       → P s → Allₛ P (head s)
+       → P s
+       → Allₛ P (head s)
   _⊗ₛ_ : {s : StateList M} {ss : StateList (suc M)}
-       → Allₛ P ss → P s → Allₛ P (snoc ss s)
+       → Allₛ P ss → P s
+       → Allₛ P (snoc ss s)
 
 -- Recursive All for StateList.
 data RAll (P : ∀ {Σ} {𝕞 : Map Σ} → CState 𝕞 → Set) : {M : ℕ} → StateList M → Set where
   base : ∀ {Σ} {𝕞 : Map Σ} {cs : CState 𝕞}
-      → P cs → RAll P (base cs)
+       → P cs
+       → RAll P (base cs)
   head : ∀ {M} {s : StateList M}
-       → RAll P s → RAll P (head s)
+       → RAll P s
+       → RAll P (head s)
   snoc : ∀ {M} {s : StateList M} {ss}
-       → RAll P ss → RAll P s → RAll P (snoc ss s)
+       → RAll P ss → RAll P s
+       → RAll P (snoc ss s)
 
 data Step' : CState 𝕞 → CState 𝕞' → Set where
   head-β : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞'}
-         → Step  (M ∥ 𝕞) (M' ∥ 𝕞')   → Step' (§ᵖ M ⟫ 𝕞) (§ᵖ M' ⟫ 𝕞')
+         → Step  (M ∥ 𝕞)  (M' ∥ 𝕞')  → Step' (§ᵖ M ⟫ 𝕞)    (§ᵖ M' ⟫ 𝕞')
   head-ξ : ∀ {M M' : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {𝕞 𝕞' Ms}
-         → Step  (M ∥ 𝕞) (M' ∥ 𝕞')   → Step' (Ms ∷ᵖ M ⟫ 𝕞) (Ms ∷ᵖ M' ⟫ 𝕞')
+         → Step  (M ∥ 𝕞)  (M' ∥ 𝕞')  → Step' (Ms ∷ᵖ M ⟫ 𝕞) (Ms ∷ᵖ M' ⟫ 𝕞')
   tail-ξ : ∀ {M : Σ ⁏ ∅ ⁏ ∅ ⊢ A} {Ms Ms' 𝕞 𝕞'}
          → Step' (Ms ⟫ 𝕞) (Ms' ⟫ 𝕞') → Step' (Ms ∷ᵖ M ⟫ 𝕞) (Ms' ∷ᵖ M ⟫ 𝕞')
 
 data AllStep' : CState 𝕞 → CStates → Set where
-  §ₛ   : ∀ {Σ} {𝕞 : Map Σ} {c : CState 𝕞} {c' : CState 𝕞'} → Step' c c' → AllStep' c (§ᶜ c')
+  §ₛ   : ∀ {Σ} {𝕞 : Map Σ} {c : CState 𝕞} {c' : CState 𝕞'}
+       → Step' c c'
+       → AllStep' c (§ᶜ c')
   _⊗ₛ_ : ∀ {Σ Σ'} {𝕞 : Map Σ} {𝕞' : Map Σ'}
            {c : CState 𝕞} {c' : CState 𝕞'} {c's : CStates}
-       → Step' c c' → AllStep' c c's → AllStep' c (c's ∷ᶜ c')
+       → Step' c c' → AllStep' c c's
+       → AllStep' c (c's ∷ᶜ c')
 
 --data CStep : {M : ℕ} → StateList M → StateList (suc M) → Set where
 --  base : ∀ {𝕞 𝕞' : Map Σ} {x : CState 𝕞} {y : CState 𝕞'}
@@ -567,14 +591,22 @@ allpos ((Ns ∷ᵖ N) ⟫ 𝕞) with allpos (Ns ⟫ 𝕞) | progress N 𝕞
 data CStep : ∀ {M : ℕ} → StateList M → StateList (suc M) → Set where
   base : ∀ {Σ} {𝕞 : Map Σ} {cs : CState 𝕞}
        → CStep (base cs) (allpos cs)
+
   head : ∀ {M} {s : StateList M} {t}
-       → CStep s t → CStep (head s) (head t)
+       → CStep s t
+       → CStep (head s) (head t)
+
   snoc : ∀ {M} {s : StateList M} {t ss ts}
-       → CStep ss ts → CStep s t → CStep (snoc ss s) (snoc ts t)
+       → CStep ss ts → CStep s t
+       → CStep (snoc ss s) (snoc ts t)
+
   init : ∀ {M} {ss : StateList (suc M)} {s ts}
-       → CStep ss ts → AllStateValue s → CStep (snoc ss s) (snoc ts (head s))
+       → CStep ss ts → AllStateValue s
+       → CStep (snoc ss s) (snoc ts (head s))
+
   last : ∀ {M} {ss : StateList (suc M)} {s t}
-       → AllStateValue ss → CStep s t → CStep (snoc ss s) (snoc (head ss) t)
+       → AllStateValue ss → CStep s t
+       → CStep (snoc ss s) (snoc (head ss) t)
 
 _—→_ : ∀ (L : CState 𝕞) (M : CState 𝕞') → Set
 L —→ M = Step' L M
@@ -638,6 +670,13 @@ data _—↠_ : CState 𝕞 → CState 𝕞' → Set where
           → M —↠ N
           → L —↠ N
 
+data _⇉_ : ∀ {M N} → StateList M → StateList N → Set where
+  _end : ∀ {M} → (s : StateList M) → s ⇉ s
+  _⇉⟨_⟩_ : ∀ {M N} → (s : StateList M) → {t : StateList (suc M)} → {u : StateList N}
+         → CStep s t
+         → t ⇉ u
+         → s ⇉ u
+
 data Gas : Set where
   gas : ℕ → Gas
 
@@ -650,9 +689,17 @@ data Finished {Σ} {𝕞 : Map Σ} : CState 𝕞 → Set where
   done       : ∀ {Ms} → Allₚ Value Ms → Finished (Ms ⟫ 𝕞)
   out-of-gas : ∀ {N} → Finished N
 
+data Finished' : {M : ℕ} → StateList M → Set where
+  done       : ∀ {M} {s : StateList M} → AllStateValue s → Finished' s
+  out-of-gas : ∀ {M} {s : StateList M} → Finished' s
+
 data Steps : CState 𝕞 → Set where
   steps : ∀ {L : CState 𝕞} {N : CState 𝕞'}
         → L —↠ N → Finished N → Steps L
+
+data Steps' : {M : ℕ} → StateList M → Set where
+  steps : ∀ {M N} {s : StateList M} {t : StateList N}
+        → s ⇉ t → Finished' t → Steps' s
 
 eval : Gas → (L : CState 𝕞) → Steps L
 eval (gas zero) L = steps (L end) out-of-gas
@@ -660,6 +707,13 @@ eval (gas (suc x)) L@(T ⟫ 𝕞)  with progress' T 𝕞
 ... | done VL   = steps (L end) (done VL)
 ... | step {M} {𝕞'} L—→M with eval (gas x) (M ⟫ 𝕞')
 ...   | steps M—↠N fin = steps (L —→⟨ L—→M ⟩ M—↠N) fin
+
+evalₙ : {M : ℕ} → Gas → (s : StateList M) → Steps' s
+evalₙ (gas zero) s = steps (s end) out-of-gas
+evalₙ (gas (suc x)) s with progressₙ s
+... | done AVs = steps (s end) (done AVs)
+... | step {t} s→t with evalₙ (gas x) t
+...   | steps t→u fin = steps (s ⇉⟨ s→t ⟩ t→u) fin
 
 --data _—↣_ : ∀ {Σ Γ A} → State Σ Γ A → State Σ Γ A → Set where
 --  _stop : ∀ {Σ Γ A} (S : State Σ Γ A)
