@@ -46,6 +46,7 @@ data Type where
 data MType where
   `ℕ : MType `ℕ
 
+
 data Memory : Set where
   ∅   : Memory
   _▷_ : {T : Type} → Memory → MType T → Memory
@@ -159,6 +160,13 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
          → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
          → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
 
+--data Handler {A B} (MA : MType A) (MB : MType B) : Set where
+--  ∅ : Handler MA MB
+--  _,_↝_ : Handler MA MB → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MA → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MB → Handler MA MB
+
+handler : ∀ {A B} {MA : MType A} {MB : MType B}
+        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
+        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
 
 lookup : Context → ℕ → Type
 lookup (Γ ▷ A) zero    = A
