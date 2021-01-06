@@ -41,7 +41,7 @@ get&inc = dcl {MA = `ℕ} 2+2ᶜ (do get Z
 emptyMap : Map ∅
 emptyMap = ∅
 
-cstate = § get&inc ⟫ emptyMap
+--cstate = § get&inc ⟫ emptyMap
 
 --get&incx : (E : ℳ ⁏ Γ ⊢ `ℕ) → ℳ ⁏ Γ ⊢ `Cmd `ℕ
 --get&incx E = dcl {MA = `ℕ} E (bnd (get Z) (ret (`suc # 0)))

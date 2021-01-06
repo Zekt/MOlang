@@ -25,7 +25,7 @@ infix  4 _∥_ _⟫_
 infixl 5 _▷_
 infixr 7 _⇒_
 infixl 7 _·_
-infix 7 _⊕_ _⊕ᶜ_ _∷ᶜ_ _∷ᵖ_
+infix  7 _⊕_ _⊕ᶜ_ _∷ᶜ_ _∷ᵖ_
 infix  8 `suc_ get_ §ᶜ_ §ᵖ_
 infix  9 `_
 infix  9 #_
@@ -38,9 +38,10 @@ data MType : Type → Set
 data Context : Set
 
 data Type where
-  _⇒_  : Type → Type → Type
-  `ℕ   : Type
-  `Cmd : {T : Type} → (MType T) → Type
+  _⇒_     : Type → Type → Type
+  `ℕ      : Type
+  `Cmd    : {T : Type} → (MType T) → Type
+  Hand_⇛_ : {T U : Type} → MType T → MType U → Type
 
 data MType where
   `ℕ : MType `ℕ
@@ -79,15 +80,7 @@ data _∋_ : Context → Type → Set where
   S : ∀ {Γ A B}
     → Γ ∋ A → Γ ▷ B ∋ A
 
-
 --liftType : MType → Type
---liftType `ℕ = `ℕ
---
---LiftType : MType → Type → Set
---LiftType `ℕ `ℕ = ⊤
---LiftType `ℕ (A ⇒ A₁) = ⊥
---LiftType `ℕ (`Cmd A) = ⊥
-
 
 --data _∋ₛ_ : Store → Id → Set where
 --  Z : ∀ {Σ a}            → Σ ▷ a ∋ₛ a
@@ -160,6 +153,12 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
        → Σ ∋ₛ MA
        → Σ ⁏ ℳ ⁏ Γ ⊢ A
        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
+
+  handle : ∀ {A B} {MA : MType A} {MB : MType B}
+         → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
+         → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
+         → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
+
 
 lookup : Context → ℕ → Type
 lookup (Γ ▷ A) zero    = A
