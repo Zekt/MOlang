@@ -159,6 +159,9 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
          → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
          → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
 
+  handler : (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB)
+          → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
+
 
 lookup : Context → ℕ → Type
 lookup (Γ ▷ A) zero    = A
