@@ -1,11 +1,11 @@
---open import Relation.Binary.PropositionalEquality as Eq
---      using (_≡_; _≢_; refl; cong; cong₂; sym; inspect)
+open import Relation.Binary.PropositionalEquality as Eq
+      using (_≡_; _≢_; refl; cong; cong₂; sym; inspect)
 open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Unit using (⊤; tt)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
-open import Data.List using (List; _∷_; []; all)
+open import Data.List using (List; _∷_; []; all; map)
 open import Data.List.All using (All)
 open import Data.List.NonEmpty using (List⁺; _∷⁺_)
 open import Data.Product using (_×_; _,_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂)
@@ -90,7 +90,9 @@ data _∋_ : Context → Type → Set where
 extM : (Id → Type) → Id → Type → (Id → Type)
 extM ℳ i T j with i ≟ j
 extM ℳ i T j | yes _ = T
-extM ℳ i T j | no _ = ℳ j
+extM ℳ i T j | no _  = ℳ j
+
+Scheme : Shared → Memory → Context → Set
 
 data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
   `_ : Γ ∋ A
@@ -160,16 +162,18 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
          → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
          → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
 
-  handler : (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB)
+  handler : Scheme Σ ℳ Γ
           → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
+
+--The result of MA is available in MB
+--Continuation of MA is ...
+Scheme Σ ℳ Γ = ∀ {A B} {MA : MType A} {MB : MType B}
+             → List (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA × Σ ⁏ ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB)
 
 --data Handler {A B} (MA : MType A) (MB : MType B) : Set where
 --  ∅ : Handler MA MB
 --  _,_↝_ : Handler MA MB → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MA → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MB → Handler MA MB
 
-Handler : ∀ {A B} {MA : MType A} {MB : MType B}
-        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
-        → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
 
 lookup : Context → ℕ → Type
 lookup (Γ ▷ A) zero    = A
@@ -214,6 +218,9 @@ extₘ ρ (S x) = S (ρ x)
 
 rename : (∀ {A} → Γ ∋ A  → Δ ∋ A)
        → (∀ {A} → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ ℳ ⁏ Δ ⊢ A)
+renameS : (∀ {A} → Γ ∋ A → Δ ∋ A) → Scheme Σ ℳ Γ → Scheme Σ ℳ Δ
+renameS ρ s = map ( (λ {(a , b) → rename ρ a , rename ρ b})) s
+
 rename ρ (` w)        = ` (ρ w)
 rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
 rename ρ (L · M)      = (rename ρ L) · (rename ρ M)
@@ -227,8 +234,9 @@ rename ρ (dcl N C)    = dcl (rename ρ N) (rename ρ C)
 rename ρ (get a)      = get a
 rename ρ (getₛ x)     = getₛ x
 rename ρ (setₛ x E)   = setₛ x (rename ρ E)
---rename ρ (set a N)    = set a (rename ρ N)
---
+rename ρ (handle E H) = handle (rename ρ E) (rename ρ H)
+rename ρ (handler Hs) = handler (map (λ {(a , b) → rename ρ a , rename ρ b}) Hs)
+
 renameₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA  → 𝒩 ∋ₘ MA)
         ----------------------------------
         → (∀ {A} → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ 𝒩 ⁏ Γ ⊢ A)
@@ -243,8 +251,10 @@ renameₘ σ (ret N)      = ret (renameₘ σ N)
 renameₘ σ (bnd E C)    = bnd (renameₘ σ E) (renameₘ σ C)
 renameₘ σ (dcl N C)    = dcl (renameₘ σ N) (renameₘ (extₘ σ) C)
 renameₘ σ (get a)      = get (σ a)
-renameₘ σ (getₛ x) = getₛ x
-renameₘ σ (setₛ x E) = setₛ x (renameₘ σ E)
+renameₘ σ (getₛ x)     = getₛ x
+renameₘ σ (setₛ x E)   = setₛ x (renameₘ σ E)
+renameₘ σ (handle E H) = handle (renameₘ σ E) (renameₘ σ H)
+renameₘ σ (handler Hs) = handler (map (λ {(a , b) → renameₘ σ a , renameₘ (extₘ σ) b}) Hs)
 --renameₘ σ (set a N)    = set (σ a) (renameₘ σ N)
 
 renameₛ : (∀ {A} {MA : MType A} → Σ ∋ₛ MA       → Ω ∋ₛ MA)
@@ -262,6 +272,8 @@ renameₛ τ (dcl N C) = dcl (renameₛ τ N) (renameₛ τ C)
 renameₛ τ (get a) = get a
 renameₛ τ (getₛ x) = getₛ (τ x)
 renameₛ τ (setₛ x E) = setₛ (τ x) (renameₛ τ E)
+renameₛ τ (handle E H) = handle (renameₛ τ E) (renameₛ τ H)
+renameₛ τ (handler Hs) = handler (map (λ {(a , b) → renameₛ τ a , renameₛ τ b}) Hs)
 ----For now, A in _⁏_⊩_ must be ok.
 --  rename' : ∀ {Σ Ω Γ Δ}
 --          → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
