@@ -4,12 +4,14 @@ open import Data.String using (String; _≟_)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Empty using (⊥; ⊥-elim)
 open import Data.Unit using (⊤; tt)
+open import Relation.Binary using (Decidable)
 open import Relation.Nullary using (Dec; yes; no; ¬_)
+open import Relation.Nullary.Decidable using (⌊_⌋)
 open import Data.List using (List; _∷_; []; all; map)
 open import Data.List.All using (All)
 open import Data.List.NonEmpty using (List⁺; _∷⁺_)
 open import Data.Product using (_×_; _,_; ∃; ∃-syntax; Σ-syntax; proj₁; proj₂)
-open import Function using (id; _$_; _∘_)
+open import Function using (id; _$_; _∘_) 
 --open import Category.Monad.State
 --open import Level
 
@@ -92,6 +94,9 @@ extM ℳ i T j with i ≟ j
 extM ℳ i T j | yes _ = T
 extM ℳ i T j | no _  = ℳ j
 
+--Shared is the shared memory between threads,
+--Memory the local memory of declared variables,
+--and Context the common logical context.
 Scheme : Shared → Memory → Context → Set
 
 data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
@@ -168,9 +173,31 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
 --The result of MA is available in MB
 --Continuation of MA is ...
 Scheme Σ ℳ Γ = ∀ {A B} {MA : MType A} {MB : MType B}
-             → List (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA × Σ ⁏ ℳ ▷ MA ⁏ Γ ⊢ `Cmd MB)
+             → List (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA × Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB)
 
---data Handler {A B} (MA : MType A) (MB : MType B) : Set where
+s : Scheme Σ ℳ Γ
+s = []
+
+_≟ₛ_ : ∀ (E F : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA) → Dec (E ≡ F)
+(` x) ≟ₛ F = {!!}
+(E · E₁) ≟ₛ F = {!!}
+case E E₁ E₂ ≟ₛ F = {!!}
+(μ E) ≟ₛ F = {!!}
+ret E ≟ₛ F = {!!}
+bnd E E₁ ≟ₛ F = {!!}
+dcl E E₁ ≟ₛ F = {!!}
+(get x) ≟ₛ F = {!!}
+getₛ x ≟ₛ F = {!!}
+setₛ x E ≟ₛ F = {!!}
+handle E E₁ ≟ₛ F = {!!}
+
+lookupₕ : Scheme Σ ℳ Γ → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
+lookupₕ ss a with ss
+lookupₕ ss a | [] = a
+lookupₕ ss a | (a' , b) ∷ xs with a ≟ₛ a'
+lookupₕ ss a | (a' , b) ∷ xs | yes p = {!!}
+lookupₕ ss a | (a' , b) ∷ xs | no ¬p = {!!}
+--data Handler {A B} (MA : MType A) (MB : MType B) : Set where 
 --  ∅ : Handler MA MB
 --  _,_↝_ : Handler MA MB → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MA → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MB → Handler MA MB
 
@@ -216,10 +243,11 @@ extₘ : (∀ {A}   {MA : MType A}                →      ℳ ∋ₘ MA →    
 extₘ ρ Z     = Z
 extₘ ρ (S x) = S (ρ x)
 
+{-# TERMINATING #-}
 rename : (∀ {A} → Γ ∋ A  → Δ ∋ A)
        → (∀ {A} → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ ℳ ⁏ Δ ⊢ A)
 renameS : (∀ {A} → Γ ∋ A → Δ ∋ A) → Scheme Σ ℳ Γ → Scheme Σ ℳ Δ
-renameS ρ s = map ( (λ {(a , b) → rename ρ a , rename ρ b})) s
+renameS ρ s = map ( (λ {(a , b) → rename ρ a , rename (ext ρ) b})) s
 
 rename ρ (` w)        = ` (ρ w)
 rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
@@ -235,8 +263,9 @@ rename ρ (get a)      = get a
 rename ρ (getₛ x)     = getₛ x
 rename ρ (setₛ x E)   = setₛ x (rename ρ E)
 rename ρ (handle E H) = handle (rename ρ E) (rename ρ H)
-rename ρ (handler Hs) = handler (map (λ {(a , b) → rename ρ a , rename ρ b}) Hs)
+rename ρ (handler Hs) = handler (map (λ {(a , b) → rename ρ a , rename (ext ρ) b}) Hs)
 
+{-# TERMINATING #-}
 renameₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA  → 𝒩 ∋ₘ MA)
         ----------------------------------
         → (∀ {A} → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ 𝒩 ⁏ Γ ⊢ A)
@@ -254,9 +283,10 @@ renameₘ σ (get a)      = get (σ a)
 renameₘ σ (getₛ x)     = getₛ x
 renameₘ σ (setₛ x E)   = setₛ x (renameₘ σ E)
 renameₘ σ (handle E H) = handle (renameₘ σ E) (renameₘ σ H)
-renameₘ σ (handler Hs) = handler (map (λ {(a , b) → renameₘ σ a , renameₘ (extₘ σ) b}) Hs)
+renameₘ σ (handler Hs) = handler (map (λ {(a , b) → renameₘ σ a , renameₘ σ b}) Hs)
 --renameₘ σ (set a N)    = set (σ a) (renameₘ σ N)
 
+{-# TERMINATING #-}
 renameₛ : (∀ {A} {MA : MType A} → Σ ∋ₛ MA       → Ω ∋ₛ MA)
         → (∀ {A}                → Σ ⁏ ℳ ⁏ Γ ⊢ A → Ω ⁏ ℳ ⁏ Γ ⊢ A)
 renameₛ τ (` x) = ` x
@@ -304,6 +334,7 @@ extsₘ : (∀ {A}   {MA : MType A}                →      ℳ ∋ₘ MA  → �
 extsₘ σ Z = get Z
 extsₘ σ (S x) = renameₘ S (σ x)
 
+{-# TERMINATING #-}
 subst : (∀ {A} → Γ ∋ A         → Σ ⁏ ℳ ⁏ Δ ⊢ A)
        ------------------------
       → (∀ {A} → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ ℳ ⁏ Δ ⊢ A)
@@ -320,8 +351,11 @@ subst σ (dcl N C)    = dcl (subst σ N) (subst (exts' ∘ σ) C)
 subst σ (get a)      = get a
 subst σ (getₛ x)     = getₛ x
 subst σ (setₛ x E)   = setₛ x (subst σ E)
+subst σ (handle E H) = handle (subst σ E) (subst σ H)
+subst σ (handler Hs) = handler (map (λ {(a , b) → subst σ a , subst (exts σ) b}) Hs)
 --subst σ (set a N)    = set a (subst σ N)
 
+{-# TERMINATING #-}
 substₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA       → Σ ⁏ 𝒩 ⁏ Γ ⊢ `Cmd MA)
        → (∀ {A}                → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ 𝒩 ⁏ Γ ⊢ A)
 substₘ ρ (` x) = ` x
@@ -337,6 +371,8 @@ substₘ ρ (dcl N C) = dcl (substₘ ρ N) (substₘ (λ {Z → get Z ; (S x) �
 substₘ ρ (get x) = ρ x
 substₘ ρ (getₛ x) = getₛ x
 substₘ ρ (setₛ x E) = setₛ x (substₘ ρ E)
+substₘ ρ (handle E H) = handle (substₘ ρ E) (substₘ ρ H)
+substₘ ρ (handler Hs) = handler (map (λ {(a , b) → (substₘ ρ a , substₘ (ext- ∘ ρ) b)}) Hs)
 --substₘ ρ (set x N) = {!!}
 
 _[_] : Σ ⁏ ℳ ⁏ Γ ▷ B ⊢ A → Σ ⁏ ℳ ⁏ Γ ⊢ B
@@ -471,6 +507,10 @@ data Step : State Σ ℳ Γ A → State Σ ℳ Γ A → Set where
          → (VE : Value E)
          → Step (setₛ x E ∥ 𝕞) (ret E ∥ modify 𝕞 x VE)
 
+  ξ-handle : ∀ {A B} {MA : MType A} {MB : MType B} {E E' : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA} {H : Σ ⁏ ℳ ⁏ Γ ⊢ (Hand MA ⇛ MB)}
+           → Step (E ∥ 𝕞) (E' ∥ 𝕞')
+           → Step (handle E H ∥ 𝕞) (handle E' H ∥ 𝕞')
+
   --β-dclret : ∀ {E : Σ ⁏ ℳ ⁏ Γ ⊢ A} {E' : Σ ⁏ ℳ ▷ MA ⁏ Γ ⊢ B}
   --         → (VE' : Value E')
   --         → Step (dcl E (ret {MA = MB} E')) (ret (shrink E' VE'))
@@ -525,6 +565,10 @@ progress (getₛ x) 𝕞 = step β-getₛ
 progress (setₛ x E) 𝕞 with progress E 𝕞
 ... | step E—→E′ = step (ξ-setₛ E—→E′)
 ... | done VE    = step (β-setₛ VE)
+
+progress (handle E H) 𝕞 = {!!}
+
+progress (handler Hs) 𝕞 = {!!}
 
 data ProgramList (Σ : Shared) : Set where
   §ᵖ_  : Σ ⁏ ∅ ⁏ ∅ ⊢ A → ProgramList Σ
