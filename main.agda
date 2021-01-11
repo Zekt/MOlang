@@ -170,33 +170,24 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
   handler : Scheme Σ ℳ Γ
           → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
 
+Handleable : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Set
+Handleable (getₛ x) = ⊤
+Handleable (setₛ x term) = ⊤
+Handleable _ = ⊥
+
 --The result of MA is available in MB
 --Continuation of MA is ...
 Scheme Σ ℳ Γ = ∀ {A B} {MA : MType A} {MB : MType B}
              → List (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA × Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB)
 
-s : Scheme Σ ℳ Γ
-s = []
 
-_≟ₛ_ : ∀ (E F : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA) → Dec (E ≡ F)
-(` x) ≟ₛ F = {!!}
-(E · E₁) ≟ₛ F = {!!}
-case E E₁ E₂ ≟ₛ F = {!!}
-(μ E) ≟ₛ F = {!!}
-ret E ≟ₛ F = {!!}
-bnd E E₁ ≟ₛ F = {!!}
-dcl E E₁ ≟ₛ F = {!!}
-(get x) ≟ₛ F = {!!}
-getₛ x ≟ₛ F = {!!}
-setₛ x E ≟ₛ F = {!!}
-handle E E₁ ≟ₛ F = {!!}
+--_≟ₛ_ : ∀ (E F : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA) → Dec (E ≡ F)
 
-lookupₕ : Scheme Σ ℳ Γ → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
-lookupₕ ss a with ss
-lookupₕ ss a | [] = a
-lookupₕ ss a | (a' , b) ∷ xs with a ≟ₛ a'
-lookupₕ ss a | (a' , b) ∷ xs | yes p = {!!}
-lookupₕ ss a | (a' , b) ∷ xs | no ¬p = {!!}
+--lookupₕ : Scheme Σ ℳ Γ → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
+--lookupₕ ss a with ss
+--lookupₕ ss a | [] = a
+--lookupₕ ss a | (a' , b) ∷ xs with ?
+
 --data Handler {A B} (MA : MType A) (MB : MType B) : Set where 
 --  ∅ : Handler MA MB
 --  _,_↝_ : Handler MA MB → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MA → ∅ ⁏ ∅ ⁏ ∅ ⊢ `Cmd MB → Handler MA MB
