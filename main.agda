@@ -97,7 +97,9 @@ extM ℳ i T j | no _  = ℳ j
 --Shared is the shared memory between threads,
 --Memory the local memory of declared variables,
 --and Context the common logical context.
-Scheme : Shared → Memory → Context → Set
+data MemoryOrder : Set where
+  Weak : MemoryOrder
+  SC : MemoryOrder
 
 data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
   `_ : Γ ∋ A
@@ -167,18 +169,14 @@ data _⁏_⁏_⊢_ : Shared → Memory → Context → Type → Set where
          → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
          → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MB
 
-  handler : Scheme Σ ℳ Γ
+  handler : MemoryOrder
           → Σ ⁏ ℳ ⁏ Γ ⊢ Hand MA ⇛ MB
-
-Handleable : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Set
-Handleable (getₛ x) = ⊤
-Handleable (setₛ x term) = ⊤
-Handleable _ = ⊥
 
 --The result of MA is available in MB
 --Continuation of MA is ...
-Scheme Σ ℳ Γ = ∀ {A B} {MA : MType A} {MB : MType B}
-             → List (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA × Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB)
+--Scheme : ...
+--Scheme Σ ℳ Γ = ∀ {A B} {MA : MType A} {MB : MType B}
+--             → List (Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA × Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MB)
 
 
 --_≟ₛ_ : ∀ (E F : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA) → Dec (E ≡ F)
@@ -237,8 +235,6 @@ extₘ ρ (S x) = S (ρ x)
 {-# TERMINATING #-}
 rename : (∀ {A} → Γ ∋ A  → Δ ∋ A)
        → (∀ {A} → Σ ⁏ ℳ ⁏ Γ ⊢ A → Σ ⁏ ℳ ⁏ Δ ⊢ A)
-renameS : (∀ {A} → Γ ∋ A → Δ ∋ A) → Scheme Σ ℳ Γ → Scheme Σ ℳ Δ
-renameS ρ s = map ( (λ {(a , b) → rename ρ a , rename (ext ρ) b})) s
 
 rename ρ (` w)        = ` (ρ w)
 rename ρ (ƛ N)        = ƛ (rename (ext ρ) N)
@@ -254,7 +250,7 @@ rename ρ (get a)      = get a
 rename ρ (getₛ x)     = getₛ x
 rename ρ (setₛ x E)   = setₛ x (rename ρ E)
 rename ρ (handle E H) = handle (rename ρ E) (rename ρ H)
-rename ρ (handler Hs) = handler (map (λ {(a , b) → rename ρ a , rename (ext ρ) b}) Hs)
+rename ρ (handler Hs) = {!!} -- handler (map (λ {(a , b) → rename ρ a , rename (ext ρ) b}) Hs)
 
 {-# TERMINATING #-}
 renameₘ : (∀ {A} {MA : MType A} → ℳ ∋ₘ MA  → 𝒩 ∋ₘ MA)
@@ -274,7 +270,7 @@ renameₘ σ (get a)      = get (σ a)
 renameₘ σ (getₛ x)     = getₛ x
 renameₘ σ (setₛ x E)   = setₛ x (renameₘ σ E)
 renameₘ σ (handle E H) = handle (renameₘ σ E) (renameₘ σ H)
-renameₘ σ (handler Hs) = handler (map (λ {(a , b) → renameₘ σ a , renameₘ σ b}) Hs)
+renameₘ σ (handler Hs) = {!!} -- handler (map (λ {(a , b) → renameₘ σ a , renameₘ σ b}) Hs)
 --renameₘ σ (set a N)    = set (σ a) (renameₘ σ N)
 
 {-# TERMINATING #-}
@@ -294,7 +290,7 @@ renameₛ τ (get a) = get a
 renameₛ τ (getₛ x) = getₛ (τ x)
 renameₛ τ (setₛ x E) = setₛ (τ x) (renameₛ τ E)
 renameₛ τ (handle E H) = handle (renameₛ τ E) (renameₛ τ H)
-renameₛ τ (handler Hs) = handler (map (λ {(a , b) → renameₛ τ a , renameₛ τ b}) Hs)
+renameₛ τ (handler Hs) = {!!} -- handler (map (λ {(a , b) → renameₛ τ a , renameₛ τ b}) Hs)
 ----For now, A in _⁏_⊩_ must be ok.
 --  rename' : ∀ {Σ Ω Γ Δ}
 --          → (∀ {a} → Σ ∋ₛ a → Ω ∋ₛ a)
@@ -343,7 +339,7 @@ subst σ (get a)      = get a
 subst σ (getₛ x)     = getₛ x
 subst σ (setₛ x E)   = setₛ x (subst σ E)
 subst σ (handle E H) = handle (subst σ E) (subst σ H)
-subst σ (handler Hs) = handler (map (λ {(a , b) → subst σ a , subst (exts σ) b}) Hs)
+subst σ (handler Hs) = {!!} -- handler (map (λ {(a , b) → subst σ a , subst (exts σ) b}) Hs)
 --subst σ (set a N)    = set a (subst σ N)
 
 {-# TERMINATING #-}
@@ -363,7 +359,7 @@ substₘ ρ (get x) = ρ x
 substₘ ρ (getₛ x) = getₛ x
 substₘ ρ (setₛ x E) = setₛ x (substₘ ρ E)
 substₘ ρ (handle E H) = handle (substₘ ρ E) (substₘ ρ H)
-substₘ ρ (handler Hs) = handler (map (λ {(a , b) → (substₘ ρ a , substₘ (ext- ∘ ρ) b)}) Hs)
+substₘ ρ (handler Hs) = {!!} --handler (map (λ {(a , b) → (substₘ ρ a , substₘ (ext- ∘ ρ) b)}) Hs)
 --substₘ ρ (set x N) = {!!}
 
 _[_] : Σ ⁏ ℳ ⁏ Γ ▷ B ⊢ A → Σ ⁏ ℳ ⁏ Γ ⊢ B
@@ -382,6 +378,21 @@ _[_]' {Σ} {ℳ} {Γ} {A} {B} {MA} {MB} C D = substₘ ρ C
     ρ : ∀ {A} {MA : MType A} → ℳ ▷ MB ∋ₘ MA → Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA
     ρ Z = ret D
     ρ (S x) = get x
+
+Handleable : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA → Set
+Handleable (bnd E con) = Handleable E
+Handleable (getₛ x) = ⊤
+Handleable (setₛ x term) = ⊤
+Handleable (ret term) = ⊤
+Handleable _ = ⊥
+
+handup : ∀ {A B} {MA : MType A} {MB : MType B} → MemoryOrder → (E : Σ ⁏ ℳ ⁏ Γ ⊢ `Cmd MA) → Handleable E → Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ `Cmd MA
+handup M (ret E) H = {!!}
+handup Weak (bnd E C) H with handup Weak E H
+... | res = {!!}
+handup SC (bnd E C) H = {!!}
+handup M (getₛ x) H = {!!}
+handup M (setₛ x E) H = {!!}
 
 data Value : Σ ⁏ ℳ ⁏ Γ ⊢ A → Set where
   V-ƛ    : {N : Σ ⁏ ℳ ⁏ Γ ▷ A ⊢ B} → Value (ƛ N)
