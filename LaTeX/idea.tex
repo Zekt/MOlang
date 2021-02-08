@@ -1,0 +1,73 @@
+\documentclass{beamer}
+
+\usetheme{metropolis}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{stmaryrd}
+\usepackage{setspace}
+\usepackage{stfloats}
+\usepackage{tikz}
+%\usetikzlibrary{matrix}
+%\usepackage{adjustbox}
+%\usepackage{hyperref}
+
+
+\usepackage[color=yellow,textsize=scriptsize]{todonotes}
+\usepackage{cleveref}
+
+%\setlength{\marginparwidth}{1.5cm}
+%------------------
+
+%\setlength{\topmargin}{0.0in}
+%\setlength{\textheight}{10in}
+%\setlength{\oddsidemargin}{0.0in}
+%\setlength{\evensidemargin}{0.0in}
+%\setlength{\textwidth}{6.5in}
+
+%-------------------
+%\theoremstyle{definition}
+%\newtheorem{theorem}{Theorem}[section]
+%\newtheorem{proposition}[theorem]{Proposition}
+%\newtheorem{lemma}[theorem]{Lemma}
+%\newtheorem{corollary}[theorem]{Corollary}
+%\newtheorem{conjecture}[theorem]{Conjecture}
+%\newtheorem{definition}[theorem]{Definition}
+%\newtheorem{assumption}[theorem]{Assumption}
+%\newtheorem*{example}{Example}
+%------------------
+
+%Everything before begin document is called the pre-amble and sets out how the document will look
+%It is recommended you don't touch the pre-amble until you are familiar with LateX
+
+\newcommand{\AgdaId}[1]{\ensuremath{\langle #1 \rangle_\mathtt{Agda}}}
+\newcommand{\defeq}{{}\triangleq{}}
+\newcommand{\conj}{\mathrel\land}
+\newcommand{\disj}{\mathrel\lor}
+\newcommand{\sem}[1]{[\kern-1.5pt[#1]\kern-1.5pt]}
+
+\newcommand{\awa}[2]{\hphantom{#1}\mathclap{#2}\hphantom{#1}} % as wide as
+
+\renewcommand{\i}[1]{\ensuremath{\mathit{#1}}}
+\newcommand{\id}[1]{\ensuremath{\mathit{#1}}}
+
+
+\begin{document}
+
+\title{Thread-safe data structures reasoned with algebraic effects}
+\author{Lin Tzu Chi}
+%\date{}
+
+\frame{\titlepage}
+
+\begin{frame}{}
+\end{frame}
+
+%\begin{abstract}
+%We have proved the behavioral correctness and snapshot consistency of SCFTL in Agda, assuming that some essential properties have been verified by an SMT solver.
+%\end{abstract}
+
+
+\end{document}

@@ -1,1 +1,8 @@
 *.agdai
+*.aux
+*.log
+*.toc
+*.pdf
+*.nav
+*.out
+*.snm
